@@ -745,3 +745,194 @@
     font-size: var(--font-size-sm);
     line-height: 1.5;
 }
+
+/* ================================
+   RESPONSIVE - Criar Treino Page
+   ================================ */
+@media (max-width: 768px) {
+    .criar-treino-page {
+        gap: var(--spacing-4);
+    }
+
+    .workout-form-container {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-4);
+    }
+
+    .workout-config {
+        padding: var(--spacing-4);
+    }
+
+    .workout-config-title {
+        font-size: var(--font-size-base);
+        margin-bottom: var(--spacing-4);
+    }
+
+    .workout-exercises {
+        padding: var(--spacing-4);
+        overflow-x: hidden;
+    }
+
+    .exercises-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--spacing-3);
+        margin-bottom: var(--spacing-4);
+    }
+
+    .exercises-title {
+        font-size: var(--font-size-base);
+    }
+
+    .exercise-list {
+        gap: var(--spacing-3);
+    }
+
+    .exercise-item {
+        padding: var(--spacing-3);
+    }
+
+    .exercise-item-header {
+        flex-wrap: wrap;
+        gap: var(--spacing-2);
+    }
+
+    .exercise-item-name {
+        flex: 1;
+        min-width: 0;
+        word-break: break-word;
+        font-size: var(--font-size-sm);
+    }
+
+    .exercise-details {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-2);
+    }
+
+    .exercise-detail-value {
+        font-size: var(--font-size-xs);
+        padding: var(--spacing-2);
+        min-width: 0;
+    }
+
+    .add-exercise-btn {
+        padding: var(--spacing-3);
+        font-size: var(--font-size-sm);
+    }
+
+    /* Day tabs */
+    .workout-days-nav {
+        margin-top: var(--spacing-4);
+    }
+
+    .days-tabs {
+        gap: var(--spacing-2);
+    }
+
+    .day-tab {
+        padding: var(--spacing-2) var(--spacing-3);
+        font-size: var(--font-size-sm);
+    }
+
+    .current-day-info {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--spacing-2);
+    }
+
+    .current-day-label {
+        font-size: var(--font-size-lg);
+    }
+
+    .day-name-input {
+        width: 100%;
+    }
+
+    /* Form inputs */
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px;
+        /* Prevents iOS zoom */
+        min-height: 44px;
+    }
+
+    /* Modal adjustments */
+    .modal-large {
+        max-width: 100%;
+        margin: var(--spacing-3);
+        max-height: calc(100vh - var(--spacing-6));
+    }
+
+    .workout-day-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--spacing-2);
+        overflow-x: visible;
+    }
+
+    .workout-day-tab {
+        min-width: auto;
+        padding: var(--spacing-2);
+    }
+
+    .workout-day-tab .day-label {
+        font-size: var(--font-size-xs);
+    }
+
+    .workout-day-content {
+        padding: var(--spacing-3);
+    }
+
+    .workout-day-title {
+        font-size: var(--font-size-base);
+    }
+
+    /* Notification banners */
+    .notification-banner {
+        flex-direction: column;
+        text-align: center;
+        padding: var(--spacing-3);
+        gap: var(--spacing-2);
+    }
+
+    .notification-action {
+        width: 100%;
+        text-align: center;
+    }
+
+    .edit-mode-banner {
+        flex-direction: column;
+        text-align: center;
+        gap: var(--spacing-2);
+        padding: var(--spacing-3);
+    }
+
+    /* Solicitações */
+    .solicitacao-card,
+    .request-card {
+        padding: var(--spacing-4);
+    }
+
+    .solicitacao-header,
+    .request-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-2);
+    }
+
+    .solicitacao-actions,
+    .request-actions {
+        flex-direction: column;
+        gap: var(--spacing-2);
+        width: 100%;
+    }
+
+    .btn-approve,
+    .btn-reject,
+    .btn-view {
+        width: 100%;
+        justify-content: center;
+        min-height: 44px;
+    }
+}

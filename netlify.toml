@@ -1,0 +1,9 @@
+[build]
+  base = "PK_Fit_Pro-5801839"
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,0 +1,747 @@
+.professor-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
+}
+
+/* Workout creation styles */
+.criar-treino-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
+}
+
+.workout-form-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: var(--spacing-6);
+}
+
+@media (max-width: 1024px) {
+    .workout-form-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+.workout-config {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-6);
+    box-shadow: var(--card-shadow);
+    height: fit-content;
+}
+
+.workout-config-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-6);
+}
+
+.workout-exercises {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-6);
+    box-shadow: var(--card-shadow);
+}
+
+.exercises-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-6);
+}
+
+.exercises-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+}
+
+.exercise-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+.exercise-item {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.exercise-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.exercise-item-number {
+    width: 28px;
+    height: 28px;
+    background: var(--primary-600);
+    color: white;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+}
+
+.exercise-item-name {
+    flex: 1;
+    margin-left: var(--spacing-3);
+    font-weight: var(--font-weight-medium);
+}
+
+.exercise-item-actions {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.exercise-details {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-3);
+}
+
+@media (max-width: 768px) {
+    .exercise-details {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.exercise-detail-input {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+.exercise-detail-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+}
+
+.exercise-detail-value {
+    padding: var(--spacing-2);
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+}
+
+.add-exercise-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-4);
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-fast);
+}
+
+.add-exercise-btn:hover {
+    border-color: var(--primary-400);
+    color: var(--primary-600);
+    background: var(--primary-50);
+}
+
+/* Solicitações styles */
+.solicitacoes-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
+}
+
+.solicitacao-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-5);
+    box-shadow: var(--card-shadow);
+    border-left: 4px solid var(--warning-500);
+}
+
+.solicitacao-card.pending {
+    border-left-color: var(--warning-500);
+}
+
+.solicitacao-card.approved {
+    border-left-color: var(--success-500);
+}
+
+.solicitacao-card.rejected {
+    border-left-color: var(--error-500);
+}
+
+.solicitacao-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-4);
+}
+
+.solicitacao-student {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.solicitacao-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary-500), var(--secondary-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: var(--font-weight-bold);
+}
+
+.solicitacao-info h4 {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+}
+
+.solicitacao-info p {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.solicitacao-date {
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary);
+}
+
+.solicitacao-message {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+}
+
+.solicitacao-message p {
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+}
+
+.solicitacao-actions {
+    display: flex;
+    gap: var(--spacing-3);
+    justify-content: flex-end;
+}
+
+.btn-approve {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--success-600);
+    color: white;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-fast);
+}
+
+.btn-approve:hover {
+    background: var(--success-700);
+}
+
+.btn-reject {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--error-600);
+    color: white;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-fast);
+}
+
+.btn-reject:hover {
+    background: var(--error-700);
+}
+
+.btn-view {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--primary-600);
+    color: white;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-fast);
+}
+
+.btn-view:hover {
+    background: var(--primary-700);
+}
+
+/* Student info modal styles */
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-3);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+}
+
+.info-row strong {
+    color: var(--text-secondary);
+    font-weight: var(--font-weight-medium);
+}
+
+.info-row span {
+    color: var(--text-primary);
+}
+
+/* Solicitações empty state */
+.solicitacoes-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+/* Loading and empty states */
+.loading-state,
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-8);
+    text-align: center;
+}
+
+.loading-state h3,
+.empty-state h3 {
+    margin-top: var(--spacing-4);
+    color: var(--text-primary);
+    font-size: var(--font-size-lg);
+}
+
+.loading-state p,
+.empty-state p {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+/* Multi-day workout styles */
+.workout-days-nav {
+    margin-top: var(--spacing-6);
+}
+
+.days-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-3);
+}
+
+.day-tab {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.day-tab:hover {
+    background: var(--primary-50);
+    color: var(--primary-600);
+}
+
+.day-tab.active {
+    background: var(--primary-600);
+    color: white;
+    border-color: var(--primary-600);
+}
+
+.day-tab .day-letter {
+    font-weight: var(--font-weight-semibold);
+}
+
+.day-tab .day-remove {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    font-size: 16px;
+    opacity: 0.7;
+    transition: all var(--transition-fast);
+}
+
+.day-tab .day-remove:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.day-tab.active .day-remove:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.day-tab.add-day {
+    border: 2px dashed var(--border-color);
+    background: transparent;
+    justify-content: center;
+}
+
+.day-tab.add-day:hover {
+    border-color: var(--primary-400);
+    background: var(--primary-50);
+}
+
+/* Current day header */
+.current-day-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    flex: 1;
+}
+
+.current-day-label {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-600);
+    white-space: nowrap;
+}
+
+.day-name-input {
+    flex: 1;
+    font-size: var(--font-size-base);
+}
+
+/* Message toast */
+.message-toast {
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: var(--spacing-4);
+}
+
+.message-toast.success {
+    background: var(--success-50);
+    color: var(--success-700);
+    border: 1px solid var(--success-200);
+}
+
+.message-toast.error {
+    background: var(--error-50);
+    color: var(--error-700);
+    border: 1px solid var(--error-200);
+}
+
+/* No students message */
+.no-students-message {
+    color: var(--text-secondary);
+    padding: var(--spacing-3);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+}
+
+/* Workout View Modal Styles */
+.modal-large {
+    max-width: 800px;
+    width: 95%;
+}
+
+.workout-view {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+.workout-day-tabs {
+    display: flex;
+    gap: var(--spacing-2);
+    overflow-x: auto;
+    padding-bottom: var(--spacing-2);
+}
+
+.workout-day-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    border: 2px solid transparent;
+    cursor: pointer;
+    min-width: 100px;
+    transition: all var(--transition-fast);
+}
+
+.workout-day-tab:hover {
+    background: var(--primary-50);
+    border-color: var(--primary-200);
+}
+
+.workout-day-tab.active {
+    background: var(--primary-600);
+    color: white;
+    border-color: var(--primary-600);
+}
+
+.workout-day-tab .day-label {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-sm);
+}
+
+.workout-day-tab .day-name {
+    font-size: var(--font-size-xs);
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+}
+
+.workout-day-content {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+}
+
+.workout-day-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-4);
+    color: var(--primary-600);
+}
+
+.exercises-list-view {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.exercise-view-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3);
+    background: var(--card-bg);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.exercise-view-number {
+    width: 28px;
+    height: 28px;
+    background: var(--primary-600);
+    color: white;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    flex-shrink: 0;
+}
+
+.exercise-view-info {
+    flex: 1;
+}
+
+.exercise-view-name {
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-1);
+}
+
+.exercise-view-details {
+    display: flex;
+    gap: var(--spacing-3);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.exercise-view-details span {
+    background: var(--bg-tertiary);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--radius-sm);
+}
+
+.workout-meta {
+    margin-top: var(--spacing-4);
+    text-align: right;
+    color: var(--text-tertiary);
+}
+
+/* Notification Banner Styles */
+.notification-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-6);
+}
+
+.notification-banner.warning-banner {
+    background: linear-gradient(135deg, var(--warning-500), var(--warning-600));
+    color: white;
+}
+
+.notification-banner.success-banner {
+    background: linear-gradient(135deg, var(--success-500), var(--success-600));
+    color: white;
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-content strong {
+    display: block;
+    font-size: var(--font-size-base);
+    margin-bottom: var(--spacing-1);
+}
+
+.notification-content p {
+    font-size: var(--font-size-sm);
+    opacity: 0.9;
+}
+
+.notification-action {
+    padding: var(--spacing-2) var(--spacing-4);
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-sm);
+    color: white;
+    transition: all var(--transition-fast);
+}
+
+.notification-action:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.notification-close {
+    padding: var(--spacing-1);
+    opacity: 0.8;
+    transition: opacity var(--transition-fast);
+}
+
+.notification-close:hover {
+    opacity: 1;
+}
+
+/* Request Card Styles */
+.solicitacoes-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+.request-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-5);
+    box-shadow: var(--card-shadow);
+}
+
+.request-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-4);
+}
+
+.request-student {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.request-student strong {
+    display: block;
+    font-weight: var(--font-weight-semibold);
+}
+
+.request-date {
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary);
+    display: block;
+}
+
+.user-card-avatar.small {
+    width: 40px;
+    height: 40px;
+    font-size: var(--font-size-sm);
+}
+
+.request-message {
+    background: var(--bg-tertiary);
+    padding: var(--spacing-4);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-4);
+}
+
+.request-message p {
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.request-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+}
+
+.request-actions .btn-add,
+.request-actions .btn-submit,
+.request-actions .btn-cancel {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+/* Edit Mode Banner */
+.edit-mode-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-4);
+    font-weight: var(--font-weight-medium);
+}
+
+.edit-mode-banner svg {
+    flex-shrink: 0;
+}
+
+/* No Students Message */
+.no-students-message {
+    padding: var(--spacing-4);
+    background: var(--warning-50);
+    color: var(--warning-700);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--warning-200);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+}

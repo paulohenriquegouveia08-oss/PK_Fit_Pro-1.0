@@ -1,0 +1,404 @@
+.aluno-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
+}
+
+/* Workout Card */
+.workout-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-6);
+    box-shadow: var(--card-shadow);
+}
+
+.workout-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-4);
+}
+
+.workout-card-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+}
+
+.workout-card-day {
+    padding: var(--spacing-2) var(--spacing-4);
+    background: linear-gradient(135deg, var(--primary-500), var(--secondary-500));
+    color: white;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* Exercise List */
+.exercise-view-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.exercise-view-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-4);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    gap: var(--spacing-4);
+}
+
+.exercise-view-number {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-600);
+    color: white;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-sm);
+    flex-shrink: 0;
+}
+
+.exercise-view-info {
+    flex: 1;
+}
+
+.exercise-view-name {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-1);
+}
+
+.exercise-view-details {
+    display: flex;
+    gap: var(--spacing-4);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.exercise-view-detail {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+}
+
+/* Day Tabs */
+.day-tabs {
+    display: flex;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-6);
+}
+
+.day-tab {
+    padding: var(--spacing-3) var(--spacing-5);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.day-tab:hover {
+    background: var(--gray-200);
+}
+
+.day-tab.active {
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+    color: white;
+}
+
+/* Request Button */
+.request-workout-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-3) var(--spacing-5);
+    background: var(--warning-500);
+    color: white;
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-semibold);
+    transition: all var(--transition-fast);
+}
+
+.request-workout-btn:hover {
+    background: var(--warning-600);
+}
+
+/* Profile Page */
+.profile-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
+}
+
+.profile-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-8);
+    box-shadow: var(--card-shadow);
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-6);
+    margin-bottom: var(--spacing-8);
+}
+
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary-500), var(--secondary-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+}
+
+.profile-info h2 {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-1);
+}
+
+.profile-info p {
+    color: var(--text-secondary);
+}
+
+.profile-form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-6);
+}
+
+@media (max-width: 768px) {
+    .profile-form {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Notification banner */
+.notification-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    background: linear-gradient(135deg, var(--success-500), var(--success-600));
+    color: white;
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-6);
+}
+
+.notification-banner svg {
+    flex-shrink: 0;
+}
+
+.notification-banner p {
+    flex: 1;
+}
+
+.notification-close {
+    padding: var(--spacing-1);
+    color: white;
+    opacity: 0.8;
+    transition: opacity var(--transition-fast);
+}
+
+.notification-close:hover {
+    opacity: 1;
+}
+
+/* Loading State */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-8);
+    text-align: center;
+}
+
+.loading-state p {
+    color: var(--text-secondary);
+    margin-top: var(--spacing-3);
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.empty-state h3 {
+    margin-top: var(--spacing-4);
+    color: var(--text-primary);
+}
+
+.empty-state p {
+    color: var(--text-secondary);
+    margin-top: var(--spacing-2);
+}
+
+/* Improved Day Tabs */
+.day-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-1);
+    min-width: 100px;
+}
+
+.day-tab-label {
+    font-weight: var(--font-weight-bold);
+}
+
+.day-tab-name {
+    font-size: var(--font-size-xs);
+    opacity: 0.8;
+}
+
+/* Workout Summary */
+.workout-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-4);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+/* Exercise Notes */
+.exercise-notes {
+    margin-top: var(--spacing-2);
+    padding: var(--spacing-2);
+    background: var(--primary-50);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--primary-700);
+}
+
+/* Exercise Preview Item */
+.exercise-preview-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-3);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    gap: var(--spacing-3);
+}
+
+/* Professor Info Card */
+.professor-info-card {
+    margin-top: var(--spacing-6);
+    padding: var(--spacing-4);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+}
+
+.professor-info-card h4 {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-3);
+}
+
+.professor-details {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.professor-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary-500), var(--secondary-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: var(--font-weight-bold);
+}
+
+.professor-details strong {
+    display: block;
+    font-weight: var(--font-weight-semibold);
+}
+
+.professor-details p {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+/* Message Toast */
+.message-toast {
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-medium);
+}
+
+.message-toast.success {
+    background: var(--success-50);
+    color: var(--success-700);
+    border: 1px solid var(--success-200);
+}
+
+.message-toast.error {
+    background: var(--error-50);
+    color: var(--error-700);
+    border: 1px solid var(--error-200);
+}
+
+/* Notification Banner for workout updates */
+.notification-banner.success-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    padding: var(--spacing-4) var(--spacing-5);
+    background: linear-gradient(135deg, var(--success-500), var(--success-600));
+    color: white;
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-6);
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-content strong {
+    display: block;
+    font-size: var(--font-size-base);
+    margin-bottom: var(--spacing-1);
+}
+
+.notification-content p {
+    font-size: var(--font-size-sm);
+    opacity: 0.9;
+}
+
+.notification-action {
+    padding: var(--spacing-2) var(--spacing-4);
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-sm);
+    color: white;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+
+.notification-action:hover {
+    background: rgba(255, 255, 255, 0.3);
+}

@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { getCurrentUser } from './auth.service';
+import { getCachedWorkout, setCachedWorkout, invalidateWorkoutCache } from './workoutCache.service';
 import type { ApiResponse } from '../types';
 
 export interface Exercise {
@@ -35,17 +37,10 @@ export interface CreateWorkoutData {
     days: Omit<WorkoutDay, 'id'>[];
 }
 
-// Get current professor's user ID from session storage
-function getCurrentProfessorId(): string | null {
-    const userStr = sessionStorage.getItem('user');
-    if (!userStr) return null;
-
-    try {
-        const user = JSON.parse(userStr);
-        return user.id || null;
-    } catch {
-        return null;
-    }
+// Get current user ID from persistent storage
+function getCurrentUserId(): string | null {
+    const user = getCurrentUser();
+    return user?.id || null;
 }
 
 // Create a new workout for a student
@@ -106,6 +101,9 @@ export async function createWorkout(data: CreateWorkoutData): Promise<ApiRespons
             }
         }
 
+        // Invalidate cache for this student
+        invalidateWorkoutCache(data.student_id);
+
         return {
             success: true,
             data: workout as Workout
@@ -119,9 +117,15 @@ export async function createWorkout(data: CreateWorkoutData): Promise<ApiRespons
     }
 }
 
-// Get active workout for a student
+// Get active workout for a student (with cache support)
 export async function getStudentWorkout(studentId: string): Promise<ApiResponse<Workout | null>> {
     try {
+        // Check cache first
+        const cachedWorkout = getCachedWorkout(studentId);
+        if (cachedWorkout) {
+            return { success: true, data: cachedWorkout };
+        }
+
         const { data: workout, error: workoutError } = await supabase
             .from('workouts')
             .select(`
@@ -174,13 +178,21 @@ export async function getStudentWorkout(studentId: string): Promise<ApiResponse<
             });
         }
 
+        const fullWorkout: Workout = {
+            ...workout,
+            student_name: (workout.users as any)?.name,
+            days: daysWithExercises
+        };
+
+        // Save to cache for future requests
+        const currentUser = getCurrentUser();
+        if (currentUser?.id) {
+            setCachedWorkout(studentId, fullWorkout, currentUser.id);
+        }
+
         return {
             success: true,
-            data: {
-                ...workout,
-                student_name: (workout.users as any)?.name,
-                days: daysWithExercises
-            }
+            data: fullWorkout
         };
     } catch (error) {
         console.error('Error fetching workout:', error);
@@ -193,7 +205,7 @@ export async function getStudentWorkout(studentId: string): Promise<ApiResponse<
 
 // Get all workouts created by a professor
 export async function getProfessorWorkouts(): Promise<ApiResponse<Workout[]>> {
-    const professorId = getCurrentProfessorId();
+    const professorId = getCurrentUserId();
     if (!professorId) {
         return { success: false, error: 'Professor não identificado' };
     }
@@ -251,7 +263,8 @@ export async function deleteWorkout(workoutId: string): Promise<ApiResponse<void
 // Update an existing workout
 export async function updateWorkout(
     workoutId: string,
-    days: Omit<WorkoutDay, 'id'>[]
+    days: Omit<WorkoutDay, 'id'>[],
+    studentId?: string
 ): Promise<ApiResponse<Workout>> {
     try {
         // Delete existing days (cascade will delete exercises)
@@ -304,6 +317,12 @@ export async function updateWorkout(
             .single();
 
         if (updateError) throw updateError;
+
+        // Invalidate cache for this student
+        const targetStudentId = studentId || workout.student_id;
+        if (targetStudentId) {
+            invalidateWorkoutCache(targetStudentId);
+        }
 
         return {
             success: true,

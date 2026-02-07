@@ -84,9 +84,11 @@ export default function Perfil() {
 
             if (error) throw error;
 
-            // Update session storage
+            // Update local storage using the storage service
             const updatedUser = { ...user, name, phone };
-            sessionStorage.setItem('user', JSON.stringify(updatedUser));
+            // Re-import and update the session
+            const { setStorageItem, STORAGE_KEYS, EXPIRATION } = await import('../../../shared/services/storage.service');
+            setStorageItem(STORAGE_KEYS.USER_SESSION, updatedUser, EXPIRATION.SESSION_MINUTES, updatedUser.id);
             setUser(updatedUser);
 
             setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getCurrentUser } from './auth.service';
 import type { User, ApiResponse } from '../types';
 
 export interface AcademyMember extends User {
@@ -16,17 +17,10 @@ export interface CreateMemberData {
     professor_id?: string; // For students, the assigned professor
 }
 
-// Get the current user's academy ID from session storage
+// Get the current user's academy ID from persistent storage
 export function getCurrentAcademyId(): string | null {
-    const userStr = sessionStorage.getItem('user');
-    if (!userStr) return null;
-
-    try {
-        const user = JSON.parse(userStr);
-        return user.academy_id || null;
-    } catch {
-        return null;
-    }
+    const user = getCurrentUser();
+    return user?.academy_id || null;
 }
 
 // Get all members of an academy by role

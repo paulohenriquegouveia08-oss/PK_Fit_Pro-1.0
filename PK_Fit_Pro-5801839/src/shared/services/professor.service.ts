@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getCurrentUser } from './auth.service';
 import type { User, ApiResponse } from '../types';
 
 export interface ProfessorStudent extends User {
@@ -6,17 +7,10 @@ export interface ProfessorStudent extends User {
     last_workout_date?: string;
 }
 
-// Get current professor's user ID from session storage
+// Get current professor's user ID from persistent storage
 export function getCurrentProfessorId(): string | null {
-    const userStr = sessionStorage.getItem('user');
-    if (!userStr) return null;
-
-    try {
-        const user = JSON.parse(userStr);
-        return user.id || null;
-    } catch {
-        return null;
-    }
+    const user = getCurrentUser();
+    return user?.id || null;
 }
 
 // Get students assigned to the current professor

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getCurrentUser } from './auth.service';
 import type { User, ApiResponse } from '../types';
 import type { Workout, WorkoutDay } from './workout.service';
 
@@ -13,29 +14,15 @@ export interface StudentInfo {
     workout?: Workout;
 }
 
-// Get current student's user ID from session storage
+// Get current student's user ID from persistent storage
 export function getCurrentStudentId(): string | null {
-    const userStr = sessionStorage.getItem('user');
-    if (!userStr) return null;
-
-    try {
-        const user = JSON.parse(userStr);
-        return user.id || null;
-    } catch {
-        return null;
-    }
+    const user = getCurrentUser();
+    return user?.id || null;
 }
 
-// Get current student info from session storage
+// Get current student info from persistent storage
 export function getCurrentStudentInfo(): User | null {
-    const userStr = sessionStorage.getItem('user');
-    if (!userStr) return null;
-
-    try {
-        return JSON.parse(userStr) as User;
-    } catch {
-        return null;
-    }
+    return getCurrentUser();
 }
 
 // Get student's professor info

@@ -18,6 +18,7 @@ export interface User {
   phone?: string;
   role: UserRole;
   is_active: boolean;
+  academy_id?: string; // Added for session storage of academy info
   created_at: string;
   updated_at: string;
 }

@@ -1,4 +1,12 @@
 import { supabase } from './supabase';
+import {
+    setStorageItem,
+    getStorageItem,
+    removeStorageItem,
+    clearUserData,
+    STORAGE_KEYS,
+    EXPIRATION
+} from './storage.service';
 import type { User, ApiResponse } from '../types';
 
 // Check if email exists in the system and if access is allowed
@@ -108,9 +116,17 @@ export async function createPassword(
             academyId = academyUser.academy_id;
         }
 
-        // Store user in session (with academy_id)
-        const userWithAcademy = { ...data, academy_id: academyId };
-        sessionStorage.setItem('user', JSON.stringify(userWithAcademy));
+        // Remove password_hash and store user in persistent storage
+        const { password_hash, ...safeUser } = data;
+        const userWithAcademy = { ...safeUser, academy_id: academyId };
+
+        // Store in localStorage with 7 days expiration
+        setStorageItem(
+            STORAGE_KEYS.USER_SESSION,
+            userWithAcademy,
+            EXPIRATION.SESSION_MINUTES,
+            userWithAcademy.id
+        );
 
         return {
             success: true,
@@ -181,10 +197,17 @@ export async function login(
             academyId = academyUser.academy_id;
         }
 
-        // Store user in session (remove password_hash, add academy_id)
+        // Store user in persistent storage (remove password_hash, add academy_id)
         const { password_hash, ...safeUser } = user;
         const userWithAcademy = { ...safeUser, academy_id: academyId };
-        sessionStorage.setItem('user', JSON.stringify(userWithAcademy));
+
+        // Store in localStorage with 7 days expiration
+        setStorageItem(
+            STORAGE_KEYS.USER_SESSION,
+            userWithAcademy,
+            EXPIRATION.SESSION_MINUTES,
+            userWithAcademy.id
+        );
 
         return {
             success: true,
@@ -199,23 +222,27 @@ export async function login(
     }
 }
 
-// Get current user from session
+// Get current user from persistent storage
 export function getCurrentUser(): User | null {
     try {
-        const userStr = sessionStorage.getItem('user');
-        if (!userStr) return null;
-        return JSON.parse(userStr) as User;
+        const user = getStorageItem<User>(STORAGE_KEYS.USER_SESSION);
+        return user;
     } catch {
         return null;
     }
 }
 
-// Logout
+// Logout - clear session and all user data including workout cache
 export function logout(): void {
-    sessionStorage.removeItem('user');
+    const user = getCurrentUser();
+    if (user?.id) {
+        clearUserData(user.id);
+    }
+    removeStorageItem(STORAGE_KEYS.USER_SESSION);
 }
 
 // Check if user is authenticated
 export function isAuthenticated(): boolean {
     return getCurrentUser() !== null;
 }
+

@@ -15,7 +15,9 @@ import {
 import {
     Dashboard as AdminAcademiaDashboard,
     Professores,
-    Alunos as AdminAcademiaAlunos
+    Alunos as AdminAcademiaAlunos,
+    Planos,
+    Financeiro as AdminAcademiaFinanceiro
 } from '../features/adminAcademia';
 
 // Professor
@@ -74,6 +76,16 @@ export function AppRoutes() {
             <Route path="/admin-academia/alunos" element={
                 <ProtectedRoute allowedRoles={['ADMIN_ACADEMIA']}>
                     <AdminAcademiaAlunos />
+                </ProtectedRoute>
+            } />
+            <Route path="/admin-academia/planos" element={
+                <ProtectedRoute allowedRoles={['ADMIN_ACADEMIA']}>
+                    <Planos />
+                </ProtectedRoute>
+            } />
+            <Route path="/admin-academia/financeiro" element={
+                <ProtectedRoute allowedRoles={['ADMIN_ACADEMIA']}>
+                    <AdminAcademiaFinanceiro />
                 </ProtectedRoute>
             } />
 

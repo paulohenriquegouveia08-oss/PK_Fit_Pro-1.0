@@ -6,24 +6,7 @@ import type { Workout } from '../../../shared/services/workout.service';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../../../features/adminGlobal/styles/academias.css';
 import '../styles/aluno.css';
-
-const menuItems = [
-    {
-        label: 'Dashboard',
-        path: '/aluno',
-        icon: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" /></svg>
-    },
-    {
-        label: 'Meu Treino',
-        path: '/aluno/treino',
-        icon: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z" /></svg>
-    },
-    {
-        label: 'Meu Perfil',
-        path: '/aluno/perfil',
-        icon: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
-    }
-];
+import { alunoMenuItems as menuItems } from '../../../shared/config/alunoMenu';
 
 export default function MeuTreino() {
     const [workout, setWorkout] = useState<Workout | null>(null);
@@ -101,6 +84,12 @@ export default function MeuTreino() {
         return (
             <DashboardLayout title="Meu Treino" menuItems={menuItems}>
                 <div className="aluno-dashboard">
+                    {/* Success/Error Message */}
+                    {message && (
+                        <div className={`message-toast ${message.type}`}>
+                            {message.text}
+                        </div>
+                    )}
                     <div className="page-header">
                         <h2>Minha Ficha de Treino</h2>
                     </div>
@@ -109,13 +98,68 @@ export default function MeuTreino() {
                             <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
                                 <path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z" />
                             </svg>
-                            <h3>Sem treino cadastrado</h3>
-                            <p>Seu professor ainda não criou uma ficha de treino para você.</p>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-                                Aguarde seu professor criar seu plano de treino personalizado.
+                            <h3>Você ainda não possui uma ficha de treino cadastrada.</h3>
+                            <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-4)' }}>
+                                Solicite ao seu professor para criar seu plano de treino personalizado.
                             </p>
+                            {professorId && (
+                                <button
+                                    className="btn-add"
+                                    onClick={() => setShowRequestModal(true)}
+                                    style={{ fontSize: 'var(--font-size-base)', padding: 'var(--spacing-3) var(--spacing-6)' }}
+                                >
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z" />
+                                    </svg>
+                                    Solicitar Ficha de Treino
+                                </button>
+                            )}
                         </div>
                     </div>
+
+                    {/* Request Modal (reuse existing) */}
+                    {showRequestModal && (
+                        <div className="modal-overlay" onClick={() => setShowRequestModal(false)}>
+                            <div className="modal" onClick={(e) => e.stopPropagation()}>
+                                <div className="modal-header">
+                                    <h3 className="modal-title">Solicitar Ficha de Treino</h3>
+                                    <button className="modal-close" onClick={() => setShowRequestModal(false)}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div className="modal-body">
+                                    <p style={{ marginBottom: 'var(--spacing-4)', color: 'var(--text-secondary)' }}>
+                                        Descreva suas necessidades para que seu professor crie um treino personalizado.
+                                    </p>
+                                    <form className="modal-form">
+                                        <div className="form-group">
+                                            <label className="form-label">O que você precisa?</label>
+                                            <textarea
+                                                className="form-input"
+                                                rows={5}
+                                                placeholder="Ex: Quero focar em hipertrofia, treino 4x por semana, tenho problema no joelho..."
+                                                style={{ resize: 'vertical' }}
+                                                value={requestMessage}
+                                                onChange={(e) => setRequestMessage(e.target.value)}
+                                            />
+                                        </div>
+                                    </form>
+                                </div>
+                                <div className="modal-footer">
+                                    <button className="btn-cancel" onClick={() => setShowRequestModal(false)}>Cancelar</button>
+                                    <button
+                                        className="btn-submit"
+                                        onClick={handleRequestSubmit}
+                                        disabled={isSubmitting || !requestMessage.trim()}
+                                    >
+                                        {isSubmitting ? 'Enviando...' : 'Enviar Solicitação'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </DashboardLayout>
         );

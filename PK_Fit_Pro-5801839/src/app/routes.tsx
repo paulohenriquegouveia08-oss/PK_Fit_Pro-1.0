@@ -17,7 +17,9 @@ import {
     Professores,
     Alunos as AdminAcademiaAlunos,
     Planos,
-    Financeiro as AdminAcademiaFinanceiro
+    Financeiro as AdminAcademiaFinanceiro,
+    Feedbacks as AdminAcademiaFeedbacks,
+    Solicitacoes as AdminAcademiaSolicitacoes
 } from '../features/adminAcademia';
 
 // Professor
@@ -32,7 +34,9 @@ import {
 import {
     Dashboard as AlunoDashboard,
     MeuTreino,
-    Perfil
+    Perfil,
+    Feedback as AlunoFeedback,
+    DiarioTreino
 } from '../features/aluno';
 
 export function AppRoutes() {
@@ -88,6 +92,16 @@ export function AppRoutes() {
                     <AdminAcademiaFinanceiro />
                 </ProtectedRoute>
             } />
+            <Route path="/admin-academia/feedbacks" element={
+                <ProtectedRoute allowedRoles={['ADMIN_ACADEMIA']}>
+                    <AdminAcademiaFeedbacks />
+                </ProtectedRoute>
+            } />
+            <Route path="/admin-academia/solicitacoes" element={
+                <ProtectedRoute allowedRoles={['ADMIN_ACADEMIA']}>
+                    <AdminAcademiaSolicitacoes />
+                </ProtectedRoute>
+            } />
 
             {/* Professor Routes */}
             <Route path="/professor" element={
@@ -125,6 +139,16 @@ export function AppRoutes() {
             <Route path="/aluno/perfil" element={
                 <ProtectedRoute allowedRoles={['ALUNO']}>
                     <Perfil />
+                </ProtectedRoute>
+            } />
+            <Route path="/aluno/feedback" element={
+                <ProtectedRoute allowedRoles={['ALUNO']}>
+                    <AlunoFeedback />
+                </ProtectedRoute>
+            } />
+            <Route path="/aluno/diario" element={
+                <ProtectedRoute allowedRoles={['ALUNO']}>
+                    <DiarioTreino />
                 </ProtectedRoute>
             } />
 

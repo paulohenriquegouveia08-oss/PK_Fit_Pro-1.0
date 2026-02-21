@@ -69,6 +69,33 @@ export async function getProfessorPendingRequests(professorId: string): Promise<
     }
 }
 
+// Get ALL requests for a professor (all statuses)
+export async function getAllProfessorRequests(professorId: string): Promise<ApiResponse<WorkoutRequest[]>> {
+    try {
+        const { data: requests, error } = await supabase
+            .from('workout_requests')
+            .select(`
+                *,
+                users!workout_requests_student_id_fkey(name, email)
+            `)
+            .eq('professor_id', professorId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const enrichedRequests: WorkoutRequest[] = (requests || []).map(req => ({
+            ...req,
+            student_name: (req.users as any)?.name,
+            student_email: (req.users as any)?.email
+        }));
+
+        return { success: true, data: enrichedRequests };
+    } catch (error) {
+        console.error('Error fetching all requests:', error);
+        return { success: false, error: 'Erro ao buscar solicitações' };
+    }
+}
+
 // Get pending request count for professor (for notification badge)
 export async function getProfessorPendingRequestCount(professorId: string): Promise<number> {
     try {
@@ -185,5 +212,58 @@ export async function rejectWorkoutRequest(requestId: string): Promise<ApiRespon
     } catch (error) {
         console.error('Error rejecting request:', error);
         return { success: false, error: 'Erro ao rejeitar solicitação' };
+    }
+}
+
+// Get all workout requests for an academy (read-only for admin)
+export async function getAcademyWorkoutRequests(academyId: string): Promise<ApiResponse<(WorkoutRequest & { professor_name?: string })[]>> {
+    try {
+        // Get professor IDs from academy
+        const { data: academyUsers, error: auError } = await supabase
+            .from('academy_users')
+            .select('user_id')
+            .eq('academy_id', academyId);
+
+        if (auError) throw auError;
+        if (!academyUsers || academyUsers.length === 0) return { success: true, data: [] };
+
+        const userIds = academyUsers.map(au => au.user_id);
+
+        // Get professors only
+        const { data: professors, error: profError } = await supabase
+            .from('users')
+            .select('id, name')
+            .in('id', userIds)
+            .eq('role', 'PROFESSOR');
+
+        if (profError) throw profError;
+        if (!professors || professors.length === 0) return { success: true, data: [] };
+
+        const professorIds = professors.map(p => p.id);
+        const profMap = new Map(professors.map(p => [p.id, p.name]));
+
+        // Fetch requests for those professors
+        const { data: requests, error } = await supabase
+            .from('workout_requests')
+            .select(`
+                *,
+                users!workout_requests_student_id_fkey(name, email)
+            `)
+            .in('professor_id', professorIds)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const enriched = (requests || []).map(req => ({
+            ...req,
+            student_name: (req.users as any)?.name,
+            student_email: (req.users as any)?.email,
+            professor_name: profMap.get(req.professor_id) || 'Desconhecido'
+        }));
+
+        return { success: true, data: enriched };
+    } catch (error) {
+        console.error('Error fetching academy workout requests:', error);
+        return { success: false, error: 'Erro ao buscar solicitações' };
     }
 }

@@ -1,0 +1,560 @@
+/* ========================================== */
+/* MENSALIDADES VENCENDO                      */
+/* ========================================== */
+
+.mensalidades-vencendo {
+    padding: var(--spacing-2);
+}
+
+/* Header da página */
+.mensalidades-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-6);
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+}
+
+.mensalidades-header h2 {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--gray-900);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--warning-400), var(--error-500));
+    color: white;
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 12px 4px rgba(245, 158, 11, 0.15);
+    }
+}
+
+.header-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    background: var(--gray-100);
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+    font-weight: var(--font-weight-medium);
+}
+
+.header-summary .count {
+    background: linear-gradient(135deg, var(--warning-500), var(--error-500));
+    color: white;
+    padding: 2px 10px;
+    border-radius: var(--radius-full);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-sm);
+}
+
+/* Grupo por dias */
+.day-group {
+    margin-bottom: var(--spacing-6);
+    animation: fadeInUp 0.4s ease forwards;
+    opacity: 0;
+}
+
+.day-group:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.day-group:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.day-group:nth-child(3) {
+    animation-delay: 0.15s;
+}
+
+.day-group:nth-child(4) {
+    animation-delay: 0.2s;
+}
+
+.day-group:nth-child(5) {
+    animation-delay: 0.25s;
+}
+
+.day-group:nth-child(6) {
+    animation-delay: 0.3s;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.day-group-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-3);
+    padding-bottom: var(--spacing-2);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.day-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: white;
+    white-space: nowrap;
+}
+
+.day-badge.urgent {
+    background: linear-gradient(135deg, var(--error-500), var(--error-600));
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.day-badge.warning {
+    background: linear-gradient(135deg, var(--warning-500), var(--warning-600));
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.day-badge.safe {
+    background: linear-gradient(135deg, var(--success-500), var(--success-600));
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+
+.day-group-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--gray-700);
+}
+
+.day-group-count {
+    font-size: var(--font-size-xs);
+    color: var(--gray-500);
+    margin-left: auto;
+}
+
+/* Cards dos alunos */
+.student-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--spacing-3);
+}
+
+.student-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-4);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.student-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    border-color: var(--gray-300);
+}
+
+.student-card.urgent-border {
+    border-left: 4px solid var(--error-500);
+}
+
+.student-card.warning-border {
+    border-left: 4px solid var(--warning-500);
+}
+
+.student-card.safe-border {
+    border-left: 4px solid var(--success-500);
+}
+
+.student-card-top {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.student-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary-400), var(--primary-600));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+}
+
+.student-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.student-name {
+    font-weight: var(--font-weight-semibold);
+    color: var(--gray-900);
+    font-size: var(--font-size-base);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.student-plan-name {
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.student-card-details {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    font-size: var(--font-size-xs);
+    color: var(--gray-600);
+}
+
+.detail-item svg {
+    width: 14px;
+    height: 14px;
+    color: var(--gray-400);
+    flex-shrink: 0;
+}
+
+.detail-item .value {
+    font-weight: var(--font-weight-semibold);
+    color: var(--gray-800);
+}
+
+/* Botão WhatsApp */
+.whatsapp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, #25D366, #128C7E);
+    color: white;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+    width: 100%;
+}
+
+.whatsapp-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+    filter: brightness(1.05);
+}
+
+.whatsapp-btn:active {
+    transform: translateY(0);
+}
+
+.whatsapp-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.whatsapp-btn.disabled {
+    background: var(--gray-300);
+    color: var(--gray-500);
+    cursor: not-allowed;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+/* Empty & Loading States */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-16) var(--spacing-4);
+    gap: var(--spacing-4);
+}
+
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--gray-200);
+    border-top-color: var(--primary-500);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.empty-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-16) var(--spacing-4);
+    gap: var(--spacing-4);
+    text-align: center;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--success-100), var(--success-200));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--success-500);
+}
+
+.empty-icon svg {
+    width: 40px;
+    height: 40px;
+}
+
+.empty-container h3 {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--gray-800);
+}
+
+.empty-container p {
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+    max-width: 360px;
+}
+
+/* Error */
+.error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-8);
+    gap: var(--spacing-3);
+    text-align: center;
+}
+
+.error-container p {
+    color: var(--error-600);
+    font-weight: var(--font-weight-medium);
+}
+
+.retry-btn {
+    padding: var(--spacing-2) var(--spacing-6);
+    background: var(--primary-500);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.retry-btn:hover {
+    background: var(--primary-600);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .mensalidades-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .student-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .mensalidades-header h2 {
+        font-size: var(--font-size-xl);
+    }
+
+    .message-editor-modal {
+        width: 95%;
+        margin: var(--spacing-4);
+    }
+}
+
+/* ========================================== */
+/* MODAL DE EDIÇÃO DE MENSAGEM               */
+/* ========================================== */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.modal-content {
+    background: white;
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-2xl);
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s ease;
+}
+
+.message-editor-modal {
+    width: 540px;
+    max-width: 95vw;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-5) var(--spacing-6);
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.modal-header h3 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--gray-900);
+}
+
+.modal-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--gray-100);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--gray-500);
+    transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.modal-body {
+    padding: var(--spacing-5) var(--spacing-6);
+}
+
+.message-textarea {
+    width: 100%;
+    min-height: 180px;
+    padding: var(--spacing-3) var(--spacing-4);
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    color: var(--gray-800);
+    resize: vertical;
+    transition: border-color var(--transition-fast);
+    box-sizing: border-box;
+}
+
+.message-textarea:focus {
+    outline: none;
+    border-color: var(--primary-400);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-6);
+    border-top: 1px solid var(--gray-200);
+}
+
+.btn-cancel {
+    padding: var(--spacing-2) var(--spacing-5);
+    background: var(--gray-100);
+    color: var(--gray-700);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-cancel:hover {
+    background: var(--gray-200);
+}

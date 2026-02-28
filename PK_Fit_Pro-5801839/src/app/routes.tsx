@@ -19,7 +19,8 @@ import {
     Planos,
     Financeiro as AdminAcademiaFinanceiro,
     Feedbacks as AdminAcademiaFeedbacks,
-    Solicitacoes as AdminAcademiaSolicitacoes
+    Solicitacoes as AdminAcademiaSolicitacoes,
+    MensalidadesVencendo
 } from '../features/adminAcademia';
 
 // Professor
@@ -37,7 +38,8 @@ import {
     Perfil,
     Feedback as AlunoFeedback,
     DiarioTreino,
-    IniciarTreino
+    IniciarTreino,
+    Evolucao
 } from '../features/aluno';
 
 export function AppRoutes() {
@@ -103,6 +105,11 @@ export function AppRoutes() {
                     <AdminAcademiaSolicitacoes />
                 </ProtectedRoute>
             } />
+            <Route path="/admin-academia/mensalidades-vencendo" element={
+                <ProtectedRoute allowedRoles={['ADMIN_ACADEMIA']}>
+                    <MensalidadesVencendo />
+                </ProtectedRoute>
+            } />
 
             {/* Professor Routes */}
             <Route path="/professor" element={
@@ -155,6 +162,11 @@ export function AppRoutes() {
             <Route path="/aluno/iniciar-treino" element={
                 <ProtectedRoute allowedRoles={['ALUNO']}>
                     <IniciarTreino />
+                </ProtectedRoute>
+            } />
+            <Route path="/aluno/evolucao" element={
+                <ProtectedRoute allowedRoles={['ALUNO']}>
+                    <Evolucao />
                 </ProtectedRoute>
             } />
 

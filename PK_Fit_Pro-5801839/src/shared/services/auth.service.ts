@@ -12,10 +12,10 @@ import type { User, ApiResponse } from '../types';
 // Check if email exists in the system and if access is allowed
 export async function checkEmail(email: string): Promise<ApiResponse<{ exists: boolean; hasPassword: boolean; isBlocked?: boolean; blockReason?: string }>> {
     try {
-        // Fetch user basic info
+        // Fetch user basic info (including role for payment check)
         const { data: user, error } = await supabase
             .from('users')
-            .select('id, password_hash, is_active')
+            .select('id, password_hash, is_active, role')
             .eq('email', email.toLowerCase())
             .single();
 
@@ -66,6 +66,44 @@ export async function checkEmail(email: string): Promise<ApiResponse<{ exists: b
                     blockReason: 'Sua academia está suspensa ou inativa.'
                 }
             };
+        }
+
+        // Check payment reversal for ALUNO users
+        if (user.role === 'ALUNO') {
+            const today = new Date().toISOString().split('T')[0];
+            const monthStart = today.substring(0, 7) + '-01';
+
+            // Check if there are reversed (cancelado) payments this month
+            const { data: cancelledPayments } = await supabase
+                .from('payments')
+                .select('id')
+                .eq('student_id', user.id)
+                .eq('status', 'cancelado')
+                .gte('payment_date', monthStart)
+                .lte('payment_date', today);
+
+            if (cancelledPayments && cancelledPayments.length > 0) {
+                // Check if there's a valid paid payment this month
+                const { data: paidPayments } = await supabase
+                    .from('payments')
+                    .select('id')
+                    .eq('student_id', user.id)
+                    .eq('status', 'pago')
+                    .gte('payment_date', monthStart)
+                    .lte('payment_date', today);
+
+                if (!paidPayments || paidPayments.length === 0) {
+                    return {
+                        success: true,
+                        data: {
+                            exists: true,
+                            hasPassword: !!user.password_hash,
+                            isBlocked: true,
+                            blockReason: '⚠️ Acesso negado por falta de pagamento. Seu pagamento foi estornado. Entre em contato com sua academia para regularizar.'
+                        }
+                    };
+                }
+            }
         }
 
         return {
@@ -183,6 +221,37 @@ export async function login(
                 success: false,
                 error: 'Usuário desativado'
             };
+        }
+
+        // Check payment reversal for ALUNO users (double safety)
+        if (user.role === 'ALUNO') {
+            const today = new Date().toISOString().split('T')[0];
+            const monthStart = today.substring(0, 7) + '-01';
+
+            const { data: cancelledPayments } = await supabase
+                .from('payments')
+                .select('id')
+                .eq('student_id', user.id)
+                .eq('status', 'cancelado')
+                .gte('payment_date', monthStart)
+                .lte('payment_date', today);
+
+            if (cancelledPayments && cancelledPayments.length > 0) {
+                const { data: paidPayments } = await supabase
+                    .from('payments')
+                    .select('id')
+                    .eq('student_id', user.id)
+                    .eq('status', 'pago')
+                    .gte('payment_date', monthStart)
+                    .lte('payment_date', today);
+
+                if (!paidPayments || paidPayments.length === 0) {
+                    return {
+                        success: false,
+                        error: '⚠️ Acesso negado por falta de pagamento. Seu pagamento foi estornado. Entre em contato com sua academia para regularizar.'
+                    };
+                }
+            }
         }
 
         // Fetch academy_id for the user

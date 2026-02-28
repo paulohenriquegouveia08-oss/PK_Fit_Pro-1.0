@@ -4,3 +4,4 @@ export { default as Perfil } from './pages/Perfil';
 export { default as Feedback } from './pages/Feedback';
 export { default as DiarioTreino } from './pages/DiarioTreino';
 export { default as IniciarTreino } from './pages/IniciarTreino';
+export { default as Evolucao } from './pages/Evolucao';

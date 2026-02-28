@@ -62,8 +62,8 @@ export async function createPlan(data: CreatePlanData): Promise<ApiResponse<Plan
         if (!data.name || data.name.trim() === '') {
             return { success: false, error: 'Nome do plano é obrigatório' };
         }
-        if (data.duration_in_months < 1) {
-            return { success: false, error: 'Duração deve ser pelo menos 1 mês' };
+        if (data.duration_in_months < 0) {
+            return { success: false, error: 'Duração inválida' };
         }
         if (data.has_time_restriction) {
             if (!data.allowed_start_time || !data.allowed_end_time) {
@@ -119,8 +119,8 @@ export async function updatePlan(
 ): Promise<ApiResponse<Plan>> {
     try {
         // Validações
-        if (updates.duration_in_months !== undefined && updates.duration_in_months < 1) {
-            return { success: false, error: 'Duração deve ser pelo menos 1 mês' };
+        if (updates.duration_in_months !== undefined && updates.duration_in_months < 0) {
+            return { success: false, error: 'Duração inválida' };
         }
         if (updates.has_time_restriction === true) {
             if (!updates.allowed_start_time || !updates.allowed_end_time) {
@@ -203,9 +203,17 @@ export async function deletePlan(id: string): Promise<ApiResponse<void>> {
 // FUNÇÕES DE STUDENT PLANS
 // ==========================================
 
-// Calcular data de término baseado na duração em meses
+// Calcular data de término baseado na duração
+// duration_in_months = 0 significa semanal (7 dias)
 export function calculateEndDate(startDate: Date, durationInMonths: number): Date {
     const endDate = new Date(startDate);
+
+    // Semanal: 0 = 7 dias
+    if (durationInMonths === 0) {
+        endDate.setDate(endDate.getDate() + 7);
+        return endDate;
+    }
+
     endDate.setMonth(endDate.getMonth() + durationInMonths);
 
     // Se o dia mudou (ex: 31 jan + 1 mês = 3 mar em vez de 28 fev),

@@ -256,6 +256,19 @@ export interface PaidUnpaidStudent {
   payment_date?: string;
 }
 
+// Expiring Student Plan (membership alert)
+export interface ExpiringStudentPlan {
+  student_plan_id: string;
+  student_id: string;
+  student_name: string;
+  student_phone: string | null;
+  plan_id: string;
+  plan_name: string;
+  plan_price: number;
+  plan_end_date: string;
+  days_remaining: number;
+}
+
 // Auth State
 export interface AuthState {
   user: User | null;

@@ -23,6 +23,8 @@ export interface DiaryExercise {
     weight: number;
     unit: string;
     notes: string | null;
+    set_number: number | null;
+    rest_seconds: number | null;
     created_at: string;
 }
 
@@ -37,6 +39,8 @@ export interface CreateDiaryData {
         weight: number;
         unit?: string;
         notes?: string;
+        set_number?: number;
+        rest_seconds?: number;
     }[];
 }
 
@@ -81,7 +85,9 @@ export async function createWorkoutDiary(data: CreateDiaryData): Promise<ApiResp
             repetitions: ex.repetitions || 0,
             weight: ex.weight || 0,
             unit: ex.unit || 'kg',
-            notes: ex.notes?.trim() || null
+            notes: ex.notes?.trim() || null,
+            set_number: ex.set_number ?? null,
+            rest_seconds: ex.rest_seconds ?? null
         }));
 
         const { error: exError } = await supabase
@@ -169,7 +175,18 @@ export async function deleteWorkoutDiary(
     academyId: string
 ): Promise<ApiResponse<void>> {
     try {
-        // Exercises are deleted via CASCADE
+        // 1. Delete exercises first (RLS may block CASCADE on child table)
+        const { error: exError } = await supabase
+            .from('workout_diary_exercises')
+            .delete()
+            .eq('workout_diary_id', diaryId)
+            .eq('academy_id', academyId);
+
+        if (exError) {
+            console.error('Error deleting exercises:', exError);
+        }
+
+        // 2. Delete the diary entry itself
         const { error } = await supabase
             .from('workout_diaries')
             .delete()

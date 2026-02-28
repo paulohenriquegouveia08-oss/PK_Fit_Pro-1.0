@@ -18,7 +18,9 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.93.3",
     "bcryptjs": "^3.0.3",
+    "chart.js": "^4.5.1",
     "react": "^19.2.4",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.0",
     "recharts": "^3.7.0"

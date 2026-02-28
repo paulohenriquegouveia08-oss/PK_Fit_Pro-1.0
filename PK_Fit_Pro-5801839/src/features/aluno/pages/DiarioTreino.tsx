@@ -6,6 +6,7 @@ import {
     createWorkoutDiary,
     getStudentDiaries,
     getDiaryWithExercises,
+    deleteWorkoutDiary,
     type WorkoutDiary,
     type DiaryExercise,
     type CreateDiaryData
@@ -47,6 +48,8 @@ export default function DiarioTreino() {
     const [showDetail, setShowDetail] = useState(false);
     const [detailDiary, setDetailDiary] = useState<WorkoutDiary | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Messages
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -135,6 +138,24 @@ export default function DiarioTreino() {
     };
 
     const todayStr = new Date().toLocaleDateString('pt-BR');
+
+    // Delete
+    const handleDelete = async (diaryId: string) => {
+        if (!academyId || !studentId) return;
+        setIsDeleting(true);
+        const res = await deleteWorkoutDiary(diaryId, academyId);
+        if (res.success) {
+            setMessage({ type: 'success', text: '🗑️ Registro excluído com sucesso' });
+            setShowDetail(false);
+            setDetailDiary(null);
+            setConfirmDelete(null);
+            const list = await getStudentDiaries(studentId, academyId);
+            if (list.success && list.data) setDiaries(list.data);
+        } else {
+            setMessage({ type: 'error', text: res.error || 'Erro ao excluir' });
+        }
+        setIsDeleting(false);
+    };
 
     // ─── Styles ───
     const cardStyle: React.CSSProperties = { background: 'var(--background-primary, #fff)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: 'var(--spacing-4)' };
@@ -397,59 +418,115 @@ export default function DiarioTreino() {
                                             📅 {formatDateTime(detailDiary.created_at)}
                                         </div>
 
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
-                                            {(detailDiary.exercises || []).map((ex: DiaryExercise, i: number) => (
-                                                <div key={ex.id} style={{
-                                                    borderRadius: 'var(--radius-md)',
-                                                    border: '1px solid var(--border-color)',
-                                                    overflow: 'hidden'
-                                                }}>
-                                                    {/* Exercise header */}
-                                                    <div style={{
-                                                        background: 'linear-gradient(135deg, var(--primary-50), var(--primary-100))',
-                                                        padding: 'var(--spacing-2) var(--spacing-3)',
-                                                        borderBottom: '1px solid var(--border-color)',
-                                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                                    }}>
-                                                        <strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--primary-700)' }}>
-                                                            {i + 1}. {ex.exercise_name}
-                                                        </strong>
-                                                    </div>
+                                        {(() => {
+                                            const allExercises = detailDiary.exercises || [];
+                                            // Group by exercise_name preserving order
+                                            const grouped: { name: string; sets: DiaryExercise[] }[] = [];
+                                            const map = new Map<string, DiaryExercise[]>();
+                                            for (const ex of allExercises) {
+                                                const key = ex.exercise_name;
+                                                if (!map.has(key)) {
+                                                    const arr: DiaryExercise[] = [];
+                                                    map.set(key, arr);
+                                                    grouped.push({ name: key, sets: arr });
+                                                }
+                                                map.get(key)!.push(ex);
+                                            }
 
-                                                    {/* Exercise data */}
-                                                    <div style={{ padding: 'var(--spacing-3)' }}>
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--spacing-3)', textAlign: 'center' }}>
-                                                            <div>
-                                                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 2 }}>Séries</div>
-                                                                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)', color: 'var(--primary-600)' }}>{ex.sets}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 2 }}>Repetições</div>
-                                                                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)', color: 'var(--primary-600)' }}>{ex.repetitions}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 2 }}>Carga</div>
-                                                                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)', color: '#f59e0b' }}>{ex.weight} {ex.unit}</div>
-                                                            </div>
-                                                        </div>
+                                            return (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+                                                    {grouped.map((group, gi) => {
+                                                        const hasSetDetails = group.sets.some(s => s.set_number != null);
+                                                        const totalVolume = group.sets.reduce((sum, s) => sum + s.repetitions * s.weight, 0);
 
-                                                        {ex.notes && (
-                                                            <div style={{
-                                                                marginTop: 'var(--spacing-2)',
-                                                                padding: 'var(--spacing-2) var(--spacing-3)',
-                                                                background: 'var(--background-secondary)',
+                                                        return (
+                                                            <div key={gi} style={{
                                                                 borderRadius: 'var(--radius-md)',
-                                                                fontSize: 'var(--font-size-xs)',
-                                                                color: 'var(--text-secondary)',
-                                                                fontStyle: 'italic'
+                                                                border: '1px solid var(--border-color)',
+                                                                overflow: 'hidden'
                                                             }}>
-                                                                💬 {ex.notes}
+                                                                {/* Exercise header */}
+                                                                <div style={{
+                                                                    background: 'linear-gradient(135deg, var(--primary-50), var(--primary-100))',
+                                                                    padding: 'var(--spacing-2) var(--spacing-3)',
+                                                                    borderBottom: '1px solid var(--border-color)',
+                                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                                    flexWrap: 'wrap', gap: '4px'
+                                                                }}>
+                                                                    <strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--primary-700)' }}>
+                                                                        {gi + 1}. {group.name}
+                                                                    </strong>
+                                                                    <div style={{ display: 'flex', gap: '8px', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
+                                                                        <span>{group.sets.length} {group.sets.length === 1 ? 'série' : 'séries'}</span>
+                                                                        {totalVolume > 0 && <span style={{ color: '#f59e0b', fontWeight: 600 }}>📊 {totalVolume.toLocaleString('pt-BR')} kg vol.</span>}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Per-set details table */}
+                                                                {hasSetDetails ? (
+                                                                    <div style={{ overflowX: 'auto' }}>
+                                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
+                                                                            <thead>
+                                                                                <tr style={{ background: 'var(--background-secondary)' }}>
+                                                                                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Série</th>
+                                                                                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Reps</th>
+                                                                                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Carga</th>
+                                                                                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Descanso</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                {group.sets.map((s, si) => (
+                                                                                    <tr key={s.id} style={{ borderTop: si > 0 ? '1px solid var(--border-color)' : undefined }}>
+                                                                                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: 'var(--primary-600)' }}>{s.set_number ?? si + 1}</td>
+                                                                                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{s.repetitions}</td>
+                                                                                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#f59e0b' }}>{s.weight} {s.unit}</td>
+                                                                                        <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                                                                            {s.rest_seconds != null && s.rest_seconds > 0 ? `${s.rest_seconds}s` : '—'}
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                ) : (
+                                                                    /* Fallback: old aggregate format */
+                                                                    <div style={{ padding: 'var(--spacing-3)' }}>
+                                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--spacing-3)', textAlign: 'center' }}>
+                                                                            <div>
+                                                                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 2 }}>Séries</div>
+                                                                                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)', color: 'var(--primary-600)' }}>{group.sets[0]?.sets ?? '—'}</div>
+                                                                            </div>
+                                                                            <div>
+                                                                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 2 }}>Repetições</div>
+                                                                                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)', color: 'var(--primary-600)' }}>{group.sets[0]?.repetitions ?? '—'}</div>
+                                                                            </div>
+                                                                            <div>
+                                                                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 2 }}>Carga</div>
+                                                                                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)', color: '#f59e0b' }}>{group.sets[0]?.weight ?? '—'} {group.sets[0]?.unit}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Notes */}
+                                                                {group.sets.some(s => s.notes) && (
+                                                                    <div style={{
+                                                                        padding: 'var(--spacing-2) var(--spacing-3)',
+                                                                        borderTop: '1px solid var(--border-color)',
+                                                                        background: 'var(--background-secondary)',
+                                                                        fontSize: 'var(--font-size-xs)',
+                                                                        color: 'var(--text-secondary)',
+                                                                        fontStyle: 'italic'
+                                                                    }}>
+                                                                        💬 {group.sets.find(s => s.notes)?.notes}
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                    </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            ))}
-                                        </div>
+                                            );
+                                        })()}
 
                                         {(!detailDiary.exercises || detailDiary.exercises.length === 0) && (
                                             <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 'var(--spacing-4)' }}>
@@ -459,6 +536,63 @@ export default function DiarioTreino() {
                                     </>
                                 ) : null}
                             </div>
+                            {/* Delete button */}
+                            {detailDiary && !detailLoading && (
+                                <div style={{ padding: 'var(--spacing-3) var(--spacing-4)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    {confirmDelete === detailDiary.id ? (
+                                        <div style={{ display: 'flex', gap: 'var(--spacing-2)', alignItems: 'center', width: '100%' }}>
+                                            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', flex: 1 }}>Tem certeza? Esta ação não pode ser desfeita.</span>
+                                            <button
+                                                onClick={() => setConfirmDelete(null)}
+                                                style={{
+                                                    padding: 'var(--spacing-1) var(--spacing-3)',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    border: '1px solid var(--border-color)',
+                                                    background: 'var(--background-primary)',
+                                                    cursor: 'pointer',
+                                                    fontSize: 'var(--font-size-xs)',
+                                                    fontWeight: 600
+                                                }}
+                                            >Cancelar</button>
+                                            <button
+                                                onClick={() => handleDelete(detailDiary.id)}
+                                                disabled={isDeleting}
+                                                style={{
+                                                    padding: 'var(--spacing-1) var(--spacing-3)',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    border: 'none',
+                                                    background: '#ef4444',
+                                                    color: '#fff',
+                                                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                                                    fontSize: 'var(--font-size-xs)',
+                                                    fontWeight: 600,
+                                                    opacity: isDeleting ? 0.6 : 1
+                                                }}
+                                            >{isDeleting ? 'Excluindo...' : 'Confirmar'}</button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setConfirmDelete(detailDiary.id)}
+                                            style={{
+                                                padding: 'var(--spacing-1) var(--spacing-3)',
+                                                borderRadius: 'var(--radius-md)',
+                                                border: '1px solid #ef4444',
+                                                background: 'transparent',
+                                                color: '#ef4444',
+                                                cursor: 'pointer',
+                                                fontSize: 'var(--font-size-xs)',
+                                                fontWeight: 600,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 'var(--spacing-1)',
+                                                transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            🗑️ Excluir Registro
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

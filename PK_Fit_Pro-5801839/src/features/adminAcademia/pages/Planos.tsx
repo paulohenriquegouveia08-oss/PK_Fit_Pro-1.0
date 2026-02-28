@@ -34,6 +34,7 @@ const initialFormData: PlanFormData = {
 };
 
 const durationOptions = [
+    { value: '0', label: 'Semanal (1 semana)' },
     { value: '1', label: 'Mensal (1 mês)' },
     { value: '2', label: 'Bimestral (2 meses)' },
     { value: '3', label: 'Trimestral (3 meses)' },
@@ -113,7 +114,7 @@ export default function Planos() {
             academy_id: academyId,
             name: formData.name,
             price: parseFloat(formData.price) || 0,
-            duration_in_months: parseInt(formData.duration_in_months) || 1,
+            duration_in_months: parseInt(formData.duration_in_months),
             has_time_restriction: formData.has_time_restriction,
             allowed_start_time: formData.has_time_restriction ? formData.allowed_start_time : undefined,
             allowed_end_time: formData.has_time_restriction ? formData.allowed_end_time : undefined
@@ -146,7 +147,7 @@ export default function Planos() {
         const result = await updatePlan(selectedPlan.id, {
             name: editFormData.name,
             price: parseFloat(editFormData.price) || 0,
-            duration_in_months: parseInt(editFormData.duration_in_months) || 1,
+            duration_in_months: parseInt(editFormData.duration_in_months),
             has_time_restriction: hasTime,
             allowed_start_time: hasTime ? editFormData.allowed_start_time : undefined,
             allowed_end_time: hasTime ? editFormData.allowed_end_time : undefined

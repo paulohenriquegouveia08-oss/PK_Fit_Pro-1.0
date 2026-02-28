@@ -28,7 +28,7 @@ interface SessionState {
     exerciseIndex: number;
     setIndex: number; // 0-based
     startedAt: number; // Date.now()
-    setsCompleted: { exerciseId: string; exerciseName: string; reps: number; load: number }[];
+    setsCompleted: { exerciseId: string; exerciseName: string; reps: number; load: number; setNumber: number; restUsed: number }[];
 }
 
 const SESSION_KEY = 'pk_active_workout_session';
@@ -71,6 +71,7 @@ export default function IniciarTreino() {
 
     // Rest timer (timestamp-based)
     const restTargetRef = useRef(0); // target end time (Date.now())
+    const restStartRef = useRef(0);  // when rest started (Date.now())
     const [restRemaining, setRestRemaining] = useState(0);
     const restRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -85,7 +86,7 @@ export default function IniciarTreino() {
         totalSets: number;
         totalExercises: number;
         prevVolume: number | null;
-        completedSets: { exerciseId: string; exerciseName: string; reps: number; load: number }[];
+        completedSets: { exerciseId: string; exerciseName: string; reps: number; load: number; setNumber: number; restUsed: number }[];
         dayLabel: string;
         dayName: string;
     } | null>(null);
@@ -236,7 +237,7 @@ export default function IniciarTreino() {
         // Track locally
         const updatedSets = [
             ...session.setsCompleted,
-            { exerciseId: currentExercise.id, exerciseName: currentExercise.name, reps: repsDone, load: loadDone }
+            { exerciseId: currentExercise.id, exerciseName: currentExercise.name, reps: repsDone, load: loadDone, setNumber: session.setIndex + 1, restUsed: 0 }
         ];
 
         const nextSetIndex = session.setIndex + 1;
@@ -266,8 +267,10 @@ export default function IniciarTreino() {
 
             // Start rest timer
             const restSec = currentExercise.rest || 60;
-            const targetEnd = Date.now() + restSec * 1000;
+            const now = Date.now();
+            const targetEnd = now + restSec * 1000;
             restTargetRef.current = targetEnd;
+            restStartRef.current = now;
             setRestRemaining(restSec);
             setScreen('rest');
 
@@ -277,6 +280,15 @@ export default function IniciarTreino() {
                 setRestRemaining(remaining);
                 if (remaining <= 0) {
                     if (restRef.current) clearInterval(restRef.current);
+                    // Record actual rest used on last set
+                    setSession(prev => {
+                        if (!prev) return prev;
+                        const sets = [...prev.setsCompleted];
+                        if (sets.length > 0) {
+                            sets[sets.length - 1] = { ...sets[sets.length - 1], restUsed: Math.round((Date.now() - restStartRef.current) / 1000) };
+                        }
+                        return { ...prev, setsCompleted: sets };
+                    });
                     // Vibrate
                     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
                     setScreen('execution');
@@ -296,11 +308,20 @@ export default function IniciarTreino() {
 
     const skipRest = () => {
         if (restRef.current) clearInterval(restRef.current);
+        // Record actual rest used on last set
+        setSession(prev => {
+            if (!prev) return prev;
+            const sets = [...prev.setsCompleted];
+            if (sets.length > 0) {
+                sets[sets.length - 1] = { ...sets[sets.length - 1], restUsed: Math.round((Date.now() - restStartRef.current) / 1000) };
+            }
+            return { ...prev, setsCompleted: sets };
+        });
         setScreen('execution');
     };
 
     // ─── Finish Workout ───────────────────────────────
-    const finishWorkout = async (completedSets: { exerciseId: string; exerciseName: string; reps: number; load: number }[]) => {
+    const finishWorkout = async (completedSets: { exerciseId: string; exerciseName: string; reps: number; load: number; setNumber: number; restUsed: number }[]) => {
         if (!session) return;
         if (elapsedRef.current) clearInterval(elapsedRef.current);
 
@@ -340,32 +361,20 @@ export default function IniciarTreino() {
             const fmtTime = (s: number) => `${Math.floor(s / 60)}min ${s % 60}s`;
             const diaryTitle = `Treino ${summaryData.dayLabel} - ${summaryData.dayName} (${fmtTime(summaryData.duration)})`;
 
-            // Aggregate sets per exercise
-            const exerciseMap = new Map<string, { name: string; sets: number; totalReps: number; maxLoad: number }>();
-            for (const s of summaryData.completedSets) {
-                const key = s.exerciseId;
-                const prev = exerciseMap.get(key);
-                if (prev) {
-                    prev.sets++;
-                    prev.totalReps += s.reps;
-                    prev.maxLoad = Math.max(prev.maxLoad, s.load);
-                } else {
-                    exerciseMap.set(key, { name: s.exerciseName, sets: 1, totalReps: s.reps, maxLoad: s.load });
-                }
-            }
-
             const commentNote = diaryComment.trim() ? `\n📝 ${diaryComment.trim()}` : '';
 
             const diaryPayload: CreateDiaryData = {
                 academy_id: academyId,
                 student_id: studentId,
                 title: diaryTitle,
-                exercises: Array.from(exerciseMap.values()).map(e => ({
-                    exercise_name: e.name,
-                    sets: e.sets,
-                    repetitions: Math.round(e.totalReps / e.sets),
-                    weight: e.maxLoad,
-                    notes: `${e.sets}x${Math.round(e.totalReps / e.sets)} @ ${e.maxLoad}kg${commentNote}`
+                exercises: summaryData.completedSets.map(s => ({
+                    exercise_name: s.exerciseName,
+                    sets: s.setNumber,
+                    repetitions: s.reps,
+                    weight: s.load,
+                    set_number: s.setNumber,
+                    rest_seconds: s.restUsed,
+                    notes: s.setNumber === 1 ? commentNote.trim() || undefined : undefined
                 }))
             };
 

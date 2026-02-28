@@ -20,7 +20,8 @@ import {
     Financeiro as AdminAcademiaFinanceiro,
     Feedbacks as AdminAcademiaFeedbacks,
     Solicitacoes as AdminAcademiaSolicitacoes,
-    MensalidadesVencendo
+    MensalidadesVencendo,
+    ControleAcesso
 } from '../features/adminAcademia';
 
 // Professor
@@ -108,6 +109,11 @@ export function AppRoutes() {
             <Route path="/admin-academia/mensalidades-vencendo" element={
                 <ProtectedRoute allowedRoles={['ADMIN_ACADEMIA']}>
                     <MensalidadesVencendo />
+                </ProtectedRoute>
+            } />
+            <Route path="/admin-academia/controle-acesso" element={
+                <ProtectedRoute allowedRoles={['ADMIN_ACADEMIA']}>
+                    <ControleAcesso />
                 </ProtectedRoute>
             } />
 

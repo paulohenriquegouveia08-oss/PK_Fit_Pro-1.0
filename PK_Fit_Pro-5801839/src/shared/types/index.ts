@@ -153,6 +153,9 @@ export interface StudentPlan {
 // Payment Status
 export type PaymentStatusType = 'pago' | 'pendente' | 'cancelado';
 
+// Payment Method
+export type PaymentMethodType = 'dinheiro' | 'pix' | 'credito' | 'debito';
+
 // Payment Interface
 export interface Payment {
   id: string;
@@ -161,6 +164,7 @@ export interface Payment {
   plan_id?: string;
   amount: number;
   status: PaymentStatusType;
+  payment_method?: PaymentMethodType; // Added for tracking payment methods
   payment_date: string;
   description?: string;
   created_at: string;
@@ -216,6 +220,7 @@ export interface PaymentDetail {
   payment_date: string;
   amount: number;
   status: string;
+  payment_method?: string; // New field for drill-down table
   student_name?: string;
   plan_name?: string;
   description?: string;

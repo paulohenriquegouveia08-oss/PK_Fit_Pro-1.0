@@ -34,6 +34,7 @@ interface FormData {
     phone: string;
     professor_id: string;
     plan_id: string;
+    payment_method: 'dinheiro' | 'pix' | 'credito' | 'debito' | 'pagar_depois';
 }
 
 const initialFormData: FormData = {
@@ -41,7 +42,8 @@ const initialFormData: FormData = {
     email: '',
     phone: '',
     professor_id: '',
-    plan_id: ''
+    plan_id: '',
+    payment_method: 'pagar_depois'
 };
 
 // Student with plan info
@@ -74,6 +76,12 @@ export default function Alunos() {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [academyId, setAcademyId] = useState<string | null>(null);
     const [selectedPlanPreview, setSelectedPlanPreview] = useState<Plan | null>(null);
+
+    // Payment Modal State
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [paymentStudentInfo, setPaymentStudentInfo] = useState<{ id: string, plan_id: string, plan_price: number } | null>(null);
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'dinheiro' | 'pix' | 'credito' | 'debito'>('pix');
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     // Load students, professors, and plans
     const loadData = async () => {
@@ -182,7 +190,23 @@ export default function Alunos() {
             const planResult = await createStudentPlan(result.data.id, formData.plan_id, academyId);
 
             if (planResult.success) {
-                setMessage({ type: 'success', text: 'Aluno criado e plano vinculado com sucesso!' });
+                // Determine if payment should be marked immediately
+                if (formData.payment_method !== 'pagar_depois' && selectedPlanPreview?.price) {
+                    const payResult = await markStudentPlanAsPaid(
+                        result.data.id,
+                        formData.plan_id,
+                        academyId,
+                        selectedPlanPreview.price,
+                        formData.payment_method
+                    );
+                    if (payResult.success) {
+                        setMessage({ type: 'success', text: 'Aluno criado, plano vinculado e pagamento registrado com sucesso!' });
+                    } else {
+                        setMessage({ type: 'success', text: 'Aluno criado e plano vinculado, mas erro ao registrar pagamento: ' + (payResult.error || '') });
+                    }
+                } else {
+                    setMessage({ type: 'success', text: 'Aluno criado e plano vinculado com sucesso (Pagamento pendente).' });
+                }
             } else {
                 setMessage({ type: 'success', text: 'Aluno criado, mas houve erro ao vincular plano: ' + (planResult.error || '') });
             }
@@ -254,6 +278,32 @@ export default function Alunos() {
         }
     };
 
+    // Handle Payment Submission
+    const handleProcessPayment = async () => {
+        if (!academyId || !paymentStudentInfo) return;
+
+        setIsProcessingPayment(true);
+        const { id, plan_id, plan_price } = paymentStudentInfo;
+
+        const res = await markStudentPlanAsPaid(
+            id,
+            plan_id,
+            academyId,
+            plan_price,
+            selectedPaymentMethod
+        );
+
+        if (res.success) {
+            setStudents(prev => prev.map(s => s.id === id ? { ...s, payment_status: 'pago' as const } : s));
+            setMessage({ type: 'success', text: 'Pagamento registrado com sucesso!' });
+            setShowPaymentModal(false);
+            setPaymentStudentInfo(null);
+        } else {
+            setMessage({ type: 'error', text: res.error || 'Erro ao registrar pagamento' });
+        }
+        setIsProcessingPayment(false);
+    };
+
     // Helper functions
     const getInitials = (name: string) => {
         return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
@@ -298,7 +348,8 @@ export default function Alunos() {
             email: student.email,
             phone: student.phone || '',
             professor_id: student.professor_id || '',
-            plan_id: ''
+            plan_id: '',
+            payment_method: 'pagar_depois'
         });
         setShowEditModal(true);
     };
@@ -517,15 +568,14 @@ export default function Alunos() {
                                                     </>
                                                 ) : (
                                                     <button
-                                                        onClick={async (e) => {
+                                                        onClick={(e) => {
                                                             e.stopPropagation();
-                                                            if (!academyId || !aluno.plan_id || !aluno.plan_price) return;
-                                                            const res = await markStudentPlanAsPaid(aluno.id, aluno.plan_id, academyId, aluno.plan_price);
-                                                            if (res.success) {
-                                                                setStudents(prev => prev.map(s => s.id === aluno.id ? { ...s, payment_status: 'pago' as const } : s));
-                                                            } else {
-                                                                setMessage({ type: 'error', text: res.error || 'Erro ao registrar pagamento' });
-                                                            }
+                                                            setPaymentStudentInfo({
+                                                                id: aluno.id,
+                                                                plan_id: aluno.plan_id!,
+                                                                plan_price: aluno.plan_price!
+                                                            });
+                                                            setShowPaymentModal(true);
                                                         }}
                                                         style={{ padding: '2px 10px', fontSize: 'var(--font-size-xs)', fontWeight: 600, border: 'none', borderRadius: 'var(--radius-sm)', background: 'var(--success-500)', color: '#fff', cursor: 'pointer' }}
                                                     >
@@ -665,6 +715,62 @@ export default function Alunos() {
 
                                     {/* Plan Preview */}
                                     {renderPlanPreview()}
+
+                                    {/* Initial Payment Selection */}
+                                    {formData.plan_id && selectedPlanPreview && (
+                                        <div className="form-group" style={{ marginTop: 'var(--spacing-4)', paddingTop: 'var(--spacing-4)', borderTop: '1px solid var(--border-color)' }}>
+                                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--success-500)">
+                                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z" />
+                                                </svg>
+                                                Pagamento da Primeira Mensalidade (Opcional)
+                                            </label>
+                                            <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-2)' }}>
+                                                Selecione como o aluno pagou a primeira mensalidade para registrar agora.
+                                            </p>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 'var(--spacing-2)' }}>
+                                                {[
+                                                    { id: 'pagar_depois', label: 'Pagar Depois', icon: '⏳', default: true },
+                                                    { id: 'pix', label: 'PIX', icon: '📱' },
+                                                    { id: 'credito', label: 'Crédito', icon: '💳' },
+                                                    { id: 'debito', label: 'Débito', icon: '💳' },
+                                                    { id: 'dinheiro', label: 'Dinheiro', icon: '💵' }
+                                                ].map(method => (
+                                                    <div
+                                                        key={method.id}
+                                                        onClick={() => setFormData(prev => ({ ...prev, payment_method: method.id as any }))}
+                                                        style={{
+                                                            padding: 'var(--spacing-2)',
+                                                            border: `1px solid ${formData.payment_method === method.id ? (method.id === 'pagar_depois' ? 'var(--gray-500)' : 'var(--success-500)') : 'var(--border-color)'}`,
+                                                            borderRadius: 'var(--radius-md)',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            gap: 'var(--spacing-1)',
+                                                            background: formData.payment_method === method.id
+                                                                ? (method.id === 'pagar_depois' ? 'var(--gray-100)' : 'var(--success-50)')
+                                                                : 'var(--background-primary)',
+                                                            transition: 'all 0.2s ease',
+                                                            textAlign: 'center'
+                                                        }}
+                                                    >
+                                                        <span style={{ fontSize: '1.2rem' }}>{method.icon}</span>
+                                                        <span style={{
+                                                            fontSize: 'var(--font-size-xs)',
+                                                            fontWeight: formData.payment_method === method.id ? 600 : 400,
+                                                            color: formData.payment_method === method.id
+                                                                ? (method.id === 'pagar_depois' ? 'var(--gray-700)' : 'var(--success-700)')
+                                                                : 'var(--text-primary)'
+                                                        }}>
+                                                            {method.label}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="modal-footer">
                                     <button
@@ -841,6 +947,83 @@ export default function Alunos() {
                                     onClick={handleDelete}
                                 >
                                     Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal de Confirmação de Pagamento */}
+                {showPaymentModal && paymentStudentInfo && (
+                    <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title">Registrar Pagamento</h3>
+                                <button className="modal-close" onClick={() => setShowPaymentModal(false)}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <p style={{ marginBottom: 'var(--spacing-4)', color: 'var(--text-secondary)' }}>
+                                    Valor a receber: <strong>{formatPrice(paymentStudentInfo.plan_price)}</strong>
+                                </p>
+
+                                <div className="form-group">
+                                    <label className="form-label" style={{ marginBottom: 'var(--spacing-2)' }}>Forma de Pagamento</label>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-2)' }}>
+                                        {[
+                                            { id: 'pix', label: 'PIX', icon: '📱' },
+                                            { id: 'credito', label: 'Cartão de Crédito', icon: '💳' },
+                                            { id: 'debito', label: 'Cartão de Débito', icon: '💳' },
+                                            { id: 'dinheiro', label: 'Dinheiro', icon: '💵' }
+                                        ].map(method => (
+                                            <div
+                                                key={method.id}
+                                                onClick={() => setSelectedPaymentMethod(method.id as any)}
+                                                style={{
+                                                    padding: 'var(--spacing-3)',
+                                                    border: `2px solid ${selectedPaymentMethod === method.id ? 'var(--primary-500)' : 'var(--border-color)'}`,
+                                                    borderRadius: 'var(--radius-md)',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 'var(--spacing-2)',
+                                                    background: selectedPaymentMethod === method.id ? 'var(--primary-50)' : 'var(--background-primary)',
+                                                    transition: 'all 0.2s ease'
+                                                }}
+                                            >
+                                                <span style={{ fontSize: '1.2rem' }}>{method.icon}</span>
+                                                <span style={{
+                                                    fontWeight: selectedPaymentMethod === method.id ? 600 : 400,
+                                                    color: selectedPaymentMethod === method.id ? 'var(--primary-700)' : 'var(--text-primary)'
+                                                }}>
+                                                    {method.label}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer" style={{ marginTop: 'var(--spacing-6)' }}>
+                                <button
+                                    type="button"
+                                    className="btn-cancel"
+                                    onClick={() => setShowPaymentModal(false)}
+                                    disabled={isProcessingPayment}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn-submit"
+                                    onClick={handleProcessPayment}
+                                    disabled={isProcessingPayment}
+                                    style={{ background: 'var(--success-500)', borderColor: 'var(--success-500)' }}
+                                >
+                                    {isProcessingPayment ? 'Processando...' : 'Confirmar Pagamento'}
                                 </button>
                             </div>
                         </div>

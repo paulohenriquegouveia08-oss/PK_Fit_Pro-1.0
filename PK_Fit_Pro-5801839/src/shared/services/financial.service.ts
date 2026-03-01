@@ -10,7 +10,8 @@ import type {
     PaymentDetail,
     ExpenseDetail,
     PlanWithRevenue,
-    PaidUnpaidCounts
+    PaidUnpaidCounts,
+    PaymentMethodType
 } from '../types';
 
 // ==========================================
@@ -340,7 +341,8 @@ export async function markStudentPlanAsPaid(
     studentId: string,
     planId: string,
     academyId: string,
-    amount: number
+    amount: number,
+    paymentMethod?: PaymentMethodType
 ): Promise<ApiResponse<Payment>> {
     try {
         const today = new Date().toISOString().split('T')[0];
@@ -369,6 +371,7 @@ export async function markStudentPlanAsPaid(
                 plan_id: planId,
                 amount,
                 status: 'pago',
+                payment_method: paymentMethod, // Added payment_method
                 payment_date: today,
                 description: 'Pagamento de plano'
             })

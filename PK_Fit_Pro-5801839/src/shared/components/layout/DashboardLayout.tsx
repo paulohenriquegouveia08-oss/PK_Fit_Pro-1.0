@@ -1,6 +1,8 @@
-import { useState, type ReactNode } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useState, useEffect, type ReactNode } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { getExpiringStudentPlans } from '../../services/membershipAlert.service';
+import { getCurrentAcademyId } from '../../services/academyMember.service';
 import type { UserRole } from '../../types';
 import './layout.css';
 
@@ -19,7 +21,55 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, title, menuItems }: DashboardLayoutProps) {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [expiringCount, setExpiringCount] = useState(0);
+
+    // Fetch expiring plans
+    useEffect(() => {
+        const fetchAlerts = async () => {
+            if (user?.role === 'ADMIN_ACADEMIA' || user?.role === 'ADMIN_GLOBAL') {
+                const academyId = getCurrentAcademyId();
+                if (academyId) {
+                    const res = await getExpiringStudentPlans(academyId);
+                    if (res.success && res.data) {
+                        const totalVencendo = res.data.length;
+                        // Check if acknowledged
+                        const storageKey = `ack_mensalidades_${user.id}_${academyId}`;
+                        const ackData = localStorage.getItem(storageKey);
+                        if (ackData) {
+                            try {
+                                const parsed = JSON.parse(ackData);
+                                // If the number of expiring plans is different than what was acknowledged, show the badge again
+                                if (parsed.count !== totalVencendo) {
+                                    setExpiringCount(totalVencendo);
+                                } else {
+                                    setExpiringCount(0);
+                                }
+                            } catch (e) {
+                                setExpiringCount(totalVencendo);
+                            }
+                        } else {
+                            setExpiringCount(totalVencendo);
+                        }
+                    }
+                }
+            }
+        };
+        fetchAlerts();
+    }, [user]);
+
+    // Clear badge when visiting the route
+    useEffect(() => {
+        if (location.pathname.includes('/mensalidades-vencendo') && expiringCount > 0) {
+            const academyId = getCurrentAcademyId();
+            if (user?.id && academyId) {
+                const storageKey = `ack_mensalidades_${user.id}_${academyId}`;
+                localStorage.setItem(storageKey, JSON.stringify({ count: expiringCount, date: new Date().toISOString() }));
+                setExpiringCount(0);
+            }
+        }
+    }, [location.pathname, expiringCount, user]);
 
     const handleLogout = () => {
         logout();
@@ -79,6 +129,9 @@ export function DashboardLayout({ children, title, menuItems }: DashboardLayoutP
                                     >
                                         {item.icon}
                                         {item.label}
+                                        {item.label === 'Mensalidades' && expiringCount > 0 && (
+                                            <span className="menu-badge">{expiringCount}</span>
+                                        )}
                                     </NavLink>
                                 </li>
                             ))}

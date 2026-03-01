@@ -400,12 +400,31 @@ export default function Financeiro() {
                                         </div>
                                         <div style={{ overflowX: 'auto' }}>
                                             <table style={tblStyle}>
-                                                <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Aluno</th><th style={thStyle}>Plano</th><th style={thStyle}>Valor</th></tr></thead>
+                                                <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Aluno</th><th style={thStyle}>Plano</th><th style={thStyle}>Forma de Pgto.</th><th style={thStyle}>Valor</th></tr></thead>
                                                 <tbody>
                                                     {paymentDetails.map(p => (
-                                                        <tr key={p.id}><td style={tdStyle}>{formatDate(p.payment_date)}</td><td style={tdStyle}>{p.student_name || '—'}</td><td style={tdStyle}>{p.plan_name || '—'}</td><td style={{ ...tdStyle, color: 'var(--success-600)', fontWeight: 600 }}>{formatCurrency(p.amount)}</td></tr>
+                                                        <tr key={p.id}>
+                                                            <td style={tdStyle}>{formatDate(p.payment_date)}</td>
+                                                            <td style={tdStyle}>{p.student_name || '—'}</td>
+                                                            <td style={tdStyle}>{p.plan_name || '—'}</td>
+                                                            <td style={tdStyle}>
+                                                                <span style={{
+                                                                    display: 'inline-block',
+                                                                    padding: '2px 8px',
+                                                                    borderRadius: '12px',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 500,
+                                                                    background: 'var(--gray-100)',
+                                                                    color: 'var(--gray-700)',
+                                                                    textTransform: 'capitalize'
+                                                                }}>
+                                                                    {p.payment_method || 'N/I'}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ ...tdStyle, color: 'var(--success-600)', fontWeight: 600 }}>{formatCurrency(p.amount)}</td>
+                                                        </tr>
                                                     ))}
-                                                    {paymentDetails.length === 0 && <tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-secondary)' }}>Nenhum pagamento no período</td></tr>}
+                                                    {paymentDetails.length === 0 && <tr><td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-secondary)' }}>Nenhum pagamento no período</td></tr>}
                                                 </tbody>
                                             </table>
                                         </div>

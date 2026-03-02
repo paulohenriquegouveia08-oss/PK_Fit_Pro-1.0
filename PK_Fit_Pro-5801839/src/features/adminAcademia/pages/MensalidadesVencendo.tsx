@@ -12,11 +12,11 @@ function generateDefaultMessage(student: ExpiringStudentPlan): string {
     const formattedDate = `${day}/${month}/${year}`;
 
     if (student.days_remaining === 0) {
-        return `Olá ${student.student_name}! 👋\n\nSua mensalidade do plano *${student.plan_name}* vence *hoje* (${formattedDate}).\n\nPara continuar treinando sem interrupções, realize o pagamento o quanto antes! 💪\n\nQualquer dúvida, estamos à disposição.`;
+        return `Olá ${student.student_name}! \n\nSua mensalidade do plano *${student.plan_name}* vence *hoje* (${formattedDate}).\n\nPara continuar treinando sem interrupções, realize o pagamento o quanto antes! \n\nQualquer dúvida, estamos à disposição.`;
     } else if (student.days_remaining === 1) {
-        return `Olá ${student.student_name}! 👋\n\nSua mensalidade do plano *${student.plan_name}* vence *amanhã* (${formattedDate}).\n\nRenove sua matrícula para continuar aproveitando todos os benefícios! 💪\n\nQualquer dúvida, estamos à disposição.`;
+        return `Olá ${student.student_name}! \n\nSua mensalidade do plano *${student.plan_name}* vence *amanhã* (${formattedDate}).\n\nRenove sua matrícula para continuar aproveitando todos os benefícios! \n\nQualquer dúvida, estamos à disposição.`;
     } else {
-        return `Olá ${student.student_name}! 👋\n\nSua mensalidade do plano *${student.plan_name}* vence em *${student.days_remaining} dias* (${formattedDate}).\n\nLembre-se de renovar para não perder acesso! 💪\n\nQualquer dúvida, estamos à disposição.`;
+        return `Olá ${student.student_name}! \n\nSua mensalidade do plano *${student.plan_name}* vence em *${student.days_remaining} dias* (${formattedDate}).\n\nLembre-se de renovar para não perder acesso! \n\nQualquer dúvida, estamos à disposição.`;
     }
 }
 

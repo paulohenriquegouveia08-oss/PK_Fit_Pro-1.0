@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User, AuthState } from '../types';
-import { getCurrentUser, logout as authLogout } from '../services/auth.service';
+import { getCurrentUser, logout as authLogout, clearLocalSession } from '../services/auth.service';
+import { supabase } from '../services/supabase';
 
 interface AuthContextType extends AuthState {
     setUser: (user: User | null) => void;
@@ -32,6 +33,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     useEffect(() => {
         refreshUser();
+
+        // Listen for Supabase Auth state changes (e.g., token expiration, tab sync)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (event) => {
+                if (event === 'SIGNED_OUT') {
+                    // Force local state to log out if the underlying token is invalidated
+                    clearLocalSession();
+                    setState({
+                        user: null,
+                        isAuthenticated: false,
+                        isLoading: false
+                    });
+                } else if (event === 'SIGNED_IN') {
+                    refreshUser();
+                }
+            }
+        );
+
+        return () => {
+            subscription.unsubscribe();
+        };
     }, []);
 
     const setUser = (user: User | null) => {
@@ -42,8 +64,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
     };
 
-    const logout = () => {
-        authLogout();
+    const logout = async () => {
+        await authLogout();
         setState({
             user: null,
             isAuthenticated: false,

@@ -144,30 +144,43 @@ export async function createAcademyMember(data: CreateMemberData): Promise<ApiRe
     try {
         console.log('Creating member with data:', data);
 
-        // 1. Create the user
-        const { data: user, error: userError } = await supabase
-            .from('users')
-            .insert({
-                name: data.name,
-                email: data.email.toLowerCase(),
-                phone: data.phone || null,
-                role: data.role,
-                is_active: true
-            })
-            .select()
-            .single();
-
-        if (userError) {
-            console.error('Error creating user:', userError);
-            if (userError.code === '23505') {
-                return {
-                    success: false,
-                    error: 'Este email já está cadastrado'
-                };
+        // 1. Create the user officially via RPC (Auth.users integration)
+        // Admin always defines a standard temporary password so they can log in
+        // and optionally change it later natively.
+        const TEMP_PASSWORD = 'Mud@r123';
+        const { data: authId, error: authError } = await supabase.rpc(
+            'create_auth_user_admin',
+            {
+                raw_email: data.email.toLowerCase(),
+                raw_password: TEMP_PASSWORD,
+                raw_name: data.name,
+                raw_role: data.role
             }
+        );
+
+        if (authError) {
+            console.error('Error creating user via RPC:', authError);
             return {
                 success: false,
-                error: `Erro ao criar usuário: ${userError.message}`
+                error: `Erro ao criar usuário: O email já existe ou você não tem permissão.`
+            };
+        }
+
+        // Wait a brief moment for PostgreSQL Trigger (on_auth_user_created) to copy to public.users
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // 1.1 Fetch the generated public user ID to proceed with relationships
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', authId)
+            .single();
+
+        if (userError || !user) {
+            console.error('Trigger sync error - User not found in public.users:', userError);
+            return {
+                success: false,
+                error: 'Usuário criado, mas não sincronizado no banco de dados. Tente novamente em alguns segundos.'
             };
         }
 

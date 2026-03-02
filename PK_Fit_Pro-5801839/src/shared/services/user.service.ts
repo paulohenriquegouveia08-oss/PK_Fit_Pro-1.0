@@ -100,18 +100,40 @@ export async function getUsersByAcademy(academyId: string): Promise<ApiResponse<
 // Create user
 export async function createUser(userData: CreateUserData): Promise<ApiResponse<User>> {
     try {
+        const TEMP_PASSWORD = 'Mud@r123';
+        const { data: authId, error: authError } = await supabase.rpc(
+            'create_auth_user_admin',
+            {
+                raw_email: userData.email.toLowerCase(),
+                raw_password: TEMP_PASSWORD,
+                raw_name: userData.name,
+                raw_role: userData.role
+            }
+        );
+
+        if (authError) {
+            console.error('Error creating user via RPC:', authError);
+            return {
+                success: false,
+                error: `Erro ao criar usuário: O email já existe ou sem permissão.`
+            };
+        }
+
+        // Wait a brief moment for PostgreSQL Trigger (on_auth_user_created)
+        await new Promise(resolve => setTimeout(resolve, 300));
+
         const { data: user, error: userError } = await supabase
             .from('users')
-            .insert({
-                name: userData.name,
-                email: userData.email.toLowerCase(),
-                role: userData.role,
-                is_active: true
-            })
-            .select()
+            .select('*')
+            .eq('id', authId)
             .single();
 
-        if (userError) throw userError;
+        if (userError || !user) {
+            return {
+                success: false,
+                error: 'Usuário criado, mas não sincronizado. Tente atualizar a página.'
+            };
+        }
 
         // If academy_id is provided, link user to academy
         if (userData.academy_id) {

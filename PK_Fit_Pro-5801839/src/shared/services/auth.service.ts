@@ -12,22 +12,38 @@ import type { User, ApiResponse } from '../types';
 // Check if email exists in the system and if access is allowed
 export async function checkEmail(email: string): Promise<ApiResponse<{ exists: boolean; hasPassword: boolean; isBlocked?: boolean; blockReason?: string }>> {
     try {
-        // Fetch user basic info (including role for payment check)
-        const { data: user, error } = await supabase
-            .from('users')
-            .select('id, password_hash, is_active, role')
-            .eq('email', email.toLowerCase())
-            .single();
+        // Fetch user basic info securely via RPC (bypassing RLS since we removed anon select access)
+        const { data: userResult, error } = await supabase
+            .rpc('check_user_status_rpc', { lookup_email: email.toLowerCase() });
 
-        if (error && error.code !== 'PGRST116') {
+        if (error) {
             throw error;
         }
 
-        if (!user) {
+        if (!userResult || !userResult.exists) {
             return {
                 success: true,
                 data: { exists: false, hasPassword: false }
             };
+        }
+
+        const user = userResult as any;
+
+        // In the new Supabase Auth flow, all new users or migrated users start with 'Mud@r123'.
+        // We test if they still hold this temporary password to prompt a change.
+        let hasPassword = false;
+        const { error: tempLoginError } = await supabase.auth.signInWithPassword({
+            email: email.toLowerCase(),
+            password: 'Mud@r123'
+        });
+
+        if (!tempLoginError) {
+            // Successfully logged in with temp password -> needs to create a new one
+            hasPassword = false;
+            await supabase.auth.signOut(); // Clean up temp session
+        } else {
+            // Failed to login with temp password -> they already changed it
+            hasPassword = true;
         }
 
         // Check if user is active
@@ -36,7 +52,7 @@ export async function checkEmail(email: string): Promise<ApiResponse<{ exists: b
                 success: true,
                 data: {
                     exists: true,
-                    hasPassword: !!user.password_hash,
+                    hasPassword,
                     isBlocked: true,
                     blockReason: 'Sua conta está desativada. Entre em contato com o suporte.'
                 }
@@ -61,7 +77,7 @@ export async function checkEmail(email: string): Promise<ApiResponse<{ exists: b
                 success: true,
                 data: {
                     exists: true,
-                    hasPassword: !!user.password_hash,
+                    hasPassword,
                     isBlocked: true,
                     blockReason: 'Sua academia está suspensa ou inativa.'
                 }
@@ -97,7 +113,7 @@ export async function checkEmail(email: string): Promise<ApiResponse<{ exists: b
                         success: true,
                         data: {
                             exists: true,
-                            hasPassword: !!user.password_hash,
+                            hasPassword,
                             isBlocked: true,
                             blockReason: '⚠️ Acesso negado por falta de pagamento. Seu pagamento foi estornado. Entre em contato com sua academia para regularizar.'
                         }
@@ -110,7 +126,7 @@ export async function checkEmail(email: string): Promise<ApiResponse<{ exists: b
             success: true,
             data: {
                 exists: true,
-                hasPassword: !!user.password_hash,
+                hasPassword,
                 isBlocked: false
             }
         };
@@ -123,21 +139,47 @@ export async function checkEmail(email: string): Promise<ApiResponse<{ exists: b
     }
 }
 
-// Create password for user (first-time login)
+// Create password for user (first-time login or password reset)
 export async function createPassword(
     email: string,
     password: string
 ): Promise<ApiResponse<User>> {
     try {
-        // Import bcryptjs for password hashing
-        const bcrypt = await import('bcryptjs');
-        const passwordHash = await bcrypt.hash(password, 10);
+        // Since we migrated to Supabase Auth, setting a password for the first time
+        // means we update the user's password in the Auth system.
+        // However, if the user doesn't have an active session, they can't update their own password
+        // without a recovery token or being logged in.
 
+        // Assuming the admin created the user in auth.users with a default password,
+        // we first sign in with that default password ('Mud@r123' as per our migration),
+        // or we use the recovery flow in a real app.
+        // For backwards compatibility in this flow, we will attempt to login with a known temporary password.
+
+        const TEMP_PASSWORD = 'Mud@r123';
+        const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: email.toLowerCase(),
+            password: TEMP_PASSWORD
+        });
+
+        if (signInError) {
+            // Se não conseguiu logar com a senha temporária, talvez ele já tenha senha ou erro de credencial
+            return { success: false, error: 'Não foi possível validar seu acesso para criar a senha.' };
+        }
+
+        // Agora autenticado, atualizamos a senha do usuário
+        const { error: updateError } = await supabase.auth.updateUser({
+            password: password
+        });
+
+        if (updateError) {
+            return { success: false, error: 'Erro ao atualizar a senha no sistema.' };
+        }
+
+        // Buscar dados do public.users
         const { data, error } = await supabase
             .from('users')
-            .update({ password_hash: passwordHash })
-            .eq('email', email.toLowerCase())
-            .select()
+            .select('*')
+            .eq('id', authData.user.id)
             .single();
 
         if (error) throw error;
@@ -154,7 +196,6 @@ export async function createPassword(
             academyId = academyUser.academy_id;
         }
 
-        // Remove password_hash and store user in persistent storage
         const { password_hash, ...safeUser } = data;
         const userWithAcademy = { ...safeUser, academy_id: academyId };
 
@@ -174,7 +215,7 @@ export async function createPassword(
         console.error('Error creating password:', error);
         return {
             success: false,
-            error: 'Erro ao criar senha'
+            error: 'Erro ao criar senha. Verifique sua conexão.'
         };
     }
 }
@@ -185,34 +226,32 @@ export async function login(
     password: string
 ): Promise<ApiResponse<User>> {
     try {
+        // 1. Authenticate with Supabase Auth natively
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: email.toLowerCase(),
+            password,
+        });
+
+        if (authError || !authData.user) {
+            return {
+                success: false,
+                error: 'Email ou senha incorretos'
+            };
+        }
+
+        // 2. Fetch the user profile from our public users table
         const { data: user, error } = await supabase
             .from('users')
             .select('*')
-            .eq('email', email.toLowerCase())
+            .eq('id', authData.user.id)
             .single();
 
         if (error || !user) {
+            // Rollback auth
+            await supabase.auth.signOut();
             return {
                 success: false,
-                error: 'Email não encontrado'
-            };
-        }
-
-        if (!user.password_hash) {
-            return {
-                success: false,
-                error: 'Usuário não possui senha cadastrada'
-            };
-        }
-
-        // Import bcryptjs for password comparison
-        const bcrypt = await import('bcryptjs');
-        const isValid = await bcrypt.compare(password, user.password_hash);
-
-        if (!isValid) {
-            return {
-                success: false,
-                error: 'Senha incorreta'
+                error: 'Perfil de usuário não encontrado'
             };
         }
 
@@ -301,13 +340,19 @@ export function getCurrentUser(): User | null {
     }
 }
 
-// Logout - clear session and all user data including workout cache
-export function logout(): void {
+// Clear local frontend session data without touching Supabase Auth
+export function clearLocalSession(): void {
     const user = getCurrentUser();
     if (user?.id) {
         clearUserData(user.id);
     }
     removeStorageItem(STORAGE_KEYS.USER_SESSION);
+}
+
+// Logout - clear session and all user data including workout cache
+export async function logout(): Promise<void> {
+    clearLocalSession();
+    await supabase.auth.signOut();
 }
 
 // Check if user is authenticated

@@ -9,7 +9,6 @@ import { professorMenuItems as menuItems } from '../../../shared/config/professo
 export default function ProfessorPerfil() {
     const { user } = useAuth();
     const [isChangingPassword, setIsChangingPassword] = useState(false);
-    const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -37,7 +36,6 @@ export default function ProfessorPerfil() {
             if (error) throw error;
 
             setMessage({ type: 'success', text: 'Senha alterada com sucesso!' });
-            setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
             setIsChangingPassword(false);

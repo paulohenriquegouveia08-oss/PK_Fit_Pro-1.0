@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { DashboardLayout } from '../../../shared/components/layout';
+import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentId } from '../../../shared/services/student.service';
+import { getStudentProfessor } from '../../../shared/services/student.service';
 import { supabase } from '../../../shared/services/supabase';
 import {
     getAcademyProfessorsList,
@@ -40,7 +41,7 @@ const StarRating = ({ rating, onRate, size = 28, interactive = true }: { rating:
 const formatDate = (d: string) => new Date(d).toLocaleDateString('pt-BR');
 
 export default function Feedback() {
-    const [professors, setProfessors] = useState<{ id: string; name: string; email: string; alreadyRated: boolean }[]>([]);
+    const [professors, setProfessors] = useState<{ id: string; name: string; email: string; alreadyRated: boolean; isLinkedProfessor: boolean }[]>([]);
     const [myFeedbacks, setMyFeedbacks] = useState<FeedbackType[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [studentId, setStudentId] = useState<string | null>(null);
@@ -73,18 +74,32 @@ export default function Feedback() {
         if (!aId) { setIsLoading(false); return; }
         setAcademyId(aId);
 
-        const [profsRes, fbRes] = await Promise.all([
+        // Fetch linked professor, all academy professors, and student feedbacks in parallel
+        const [linkedProfRes, profsRes, fbRes] = await Promise.all([
+            getStudentProfessor(sId),
             getAcademyProfessorsList(aId),
             getStudentFeedbacks(sId)
         ]);
+
+        const linkedProfId = linkedProfRes.success && linkedProfRes.data ? linkedProfRes.data.id : null;
 
         if (profsRes.success && profsRes.data) {
             // Check which professors already have feedback
             const profsWithStatus = [];
             for (const p of profsRes.data) {
                 const rated = await checkExistingFeedback(sId, p.id);
-                profsWithStatus.push({ ...p, alreadyRated: rated });
+                profsWithStatus.push({
+                    ...p,
+                    alreadyRated: rated,
+                    isLinkedProfessor: p.id === linkedProfId
+                });
             }
+            // Sort: linked professor first
+            profsWithStatus.sort((a, b) => {
+                if (a.isLinkedProfessor && !b.isLinkedProfessor) return -1;
+                if (!a.isLinkedProfessor && b.isLinkedProfessor) return 1;
+                return 0;
+            });
             setProfessors(profsWithStatus);
         }
 
@@ -130,7 +145,7 @@ export default function Feedback() {
     const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
     return (
-        <DashboardLayout title="Feedback" menuItems={menuItems}>
+        <AlunoLayout title="Feedback" menuItems={menuItems}>
             <div style={{ padding: 0 }}>
                 <div style={{ marginBottom: 'var(--spacing-6)' }}>
                     <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, marginBottom: 'var(--spacing-1)' }}>⭐ Avaliar Professores</h3>
@@ -149,12 +164,34 @@ export default function Feedback() {
                         {/* Professor cards */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--spacing-4)', marginBottom: 'var(--spacing-8)' }}>
                             {professors.map(prof => (
-                                <div key={prof.id} style={{ background: 'var(--background-primary, #fff)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: 'var(--spacing-4)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-3)' }}>
-                                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-500), var(--secondary-500))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 'var(--font-size-sm)', flexShrink: 0 }}>
+                                <div key={prof.id} style={{
+                                    background: 'var(--background-primary, #fff)',
+                                    borderRadius: 'var(--radius-lg)',
+                                    border: prof.isLinkedProfessor ? '2px solid var(--primary-400)' : '1px solid var(--border-color)',
+                                    padding: 'var(--spacing-4)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 'var(--spacing-3)',
+                                    boxShadow: prof.isLinkedProfessor ? '0 2px 8px rgba(99, 102, 241, 0.15)' : 'none'
+                                }}>
+                                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: prof.isLinkedProfessor ? 'linear-gradient(135deg, var(--primary-500), var(--primary-700))' : 'linear-gradient(135deg, var(--primary-500), var(--secondary-500))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 'var(--font-size-sm)', flexShrink: 0 }}>
                                         {getInitials(prof.name)}
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{prof.name}</div>
+                                        {prof.isLinkedProfessor && (
+                                            <div style={{
+                                                fontSize: 'var(--font-size-xs)',
+                                                fontWeight: 600,
+                                                color: 'var(--primary-600)',
+                                                marginTop: '2px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}>
+                                                ⭐ Professor Responsável
+                                            </div>
+                                        )}
                                         <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prof.email}</div>
                                     </div>
                                     {prof.alreadyRated ? (
@@ -245,6 +282,6 @@ export default function Feedback() {
                     </div>
                 )}
             </div>
-        </DashboardLayout>
+        </AlunoLayout>
     );
 }

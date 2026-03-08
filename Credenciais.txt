@@ -1,0 +1,15 @@
+{
+  "supabaseUrl": "https://fuovtooenanzcrsgpsxq.supabase.co",
+  "supabaseServiceKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1b3Z0b29lbmFuemNyc2dwc3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3NDE4NzMsImV4cCI6MjA4MTMxNzg3M30._rf15v-_Qw__kmX2bqV_JC2xQPVrFYOfdfisYmyAses",
+  "academyId": "6be8304a-4772-4df9-98c2-3d6942151507",
+  "academyName": "Cia training ",
+  "turnstileConfigId": "a7b4677e-11f7-400c-8219-625f9a90e559",
+  "turnstileName": "Catraca Principal",
+  "brand": "CONTROL_ID",
+  "model": "iDBlock",
+  "ipAddress": "192.168.1.100",
+  "port": 80,
+  "authUser": "paulohenriquegouveia08@gmail.com",
+  "authPassword": "123456",
+  "pairedAt": "2026-02-28T20:04:33.227Z"
+}

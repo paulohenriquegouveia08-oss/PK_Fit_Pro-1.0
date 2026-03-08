@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { DashboardLayout } from '../../../shared/components/layout';
+import { ProfessorLayout } from '../../../shared/components/layout';
 import { getProfessorStudents, getCurrentProfessorId, type ProfessorStudent } from '../../../shared/services/professor.service';
 import { createWorkout, getStudentWorkout, updateWorkout, type Exercise, type WorkoutDay } from '../../../shared/services/workout.service';
 import { markWorkoutAsUpdated } from '../../../shared/services/workoutRequest.service';
+import { allMuscleGroups, getExercisesForDayName } from '../../../shared/data/exerciseCatalog';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../../../features/adminGlobal/styles/academias.css';
 import '../styles/professor.css';
+import '../styles/exerciseCatalog.css';
 import { professorMenuItems as menuItems } from '../../../shared/config/professorMenu';
 
 const DAY_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
@@ -27,6 +29,140 @@ const createEmptyDay = (label: string): WorkoutDay => ({
     exercises: [createEmptyExercise()]
 });
 
+// ─── Muscle Group Dropdown ──────────────────────────
+function MuscleGroupDropdown({ value, onChange }: { value: string; onChange: (name: string) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredGroups = allMuscleGroups.filter(g =>
+        g.label.toLowerCase().includes((search || value).toLowerCase())
+    );
+
+    return (
+        <div className="autocomplete-wrapper" ref={wrapperRef}>
+            <input
+                type="text"
+                className="form-input day-name-input"
+                placeholder="Selecione ou digite (Ex: Peito, Costas...)"
+                value={isOpen ? search : value}
+                onFocus={() => {
+                    setIsOpen(true);
+                    setSearch(value);
+                }}
+                onChange={(e) => {
+                    setSearch(e.target.value);
+                    onChange(e.target.value);
+                }}
+            />
+            {isOpen && (
+                <div className="autocomplete-dropdown">
+                    {filteredGroups.length > 0 ? (
+                        filteredGroups.map(group => (
+                            <div
+                                key={group.label}
+                                className="autocomplete-item"
+                                onClick={() => {
+                                    onChange(group.label);
+                                    setSearch('');
+                                    setIsOpen(false);
+                                }}
+                            >
+                                <span className="autocomplete-item-icon">{group.icon}</span>
+                                <span className="autocomplete-item-label">{group.label}</span>
+                                <span className="autocomplete-item-count">{group.exercises.length} exercícios</span>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="autocomplete-item" style={{ color: 'var(--text-secondary)', cursor: 'default' }}>
+                            Nenhum grupo encontrado — o nome digitado será usado
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── Exercise Autocomplete ──────────────────────────
+function ExerciseAutocomplete({
+    value,
+    dayName,
+    onChange,
+}: {
+    value: string;
+    dayName: string;
+    onChange: (name: string) => void;
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const catalogExercises = getExercisesForDayName(dayName);
+    const query = (isOpen ? search : value).toLowerCase();
+
+    const filteredExercises = catalogExercises.filter(ex =>
+        ex.toLowerCase().includes(query)
+    );
+
+    return (
+        <div className="exercise-autocomplete" ref={wrapperRef}>
+            <input
+                type="text"
+                className="form-input exercise-item-name"
+                placeholder={catalogExercises.length > 0 ? 'Digite ou selecione um exercício' : 'Nome do exercício'}
+                value={isOpen ? search : value}
+                onFocus={() => {
+                    setIsOpen(true);
+                    setSearch(value);
+                }}
+                onChange={(e) => {
+                    setSearch(e.target.value);
+                    onChange(e.target.value);
+                }}
+            />
+            {isOpen && filteredExercises.length > 0 && (
+                <div className="autocomplete-dropdown">
+                    {filteredExercises.map(ex => (
+                        <div
+                            key={ex}
+                            className="autocomplete-item"
+                            onClick={() => {
+                                onChange(ex);
+                                setSearch('');
+                                setIsOpen(false);
+                            }}
+                        >
+                            <span className="autocomplete-item-label">{ex}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── Main Component ──────────────────────────────────
 export default function CriarTreino() {
     const location = useLocation();
 
@@ -230,9 +366,10 @@ export default function CriarTreino() {
 
     const currentDay = workoutDays[activeDay];
     const selectedStudentName = students.find(s => s.id === selectedStudent)?.name || '';
+    const catalogExercises = getExercisesForDayName(currentDay.day_name);
 
     return (
-        <DashboardLayout title={isEditMode ? 'Editar Treino' : 'Criar Treino'} menuItems={menuItems}>
+        <ProfessorLayout title={isEditMode ? 'Editar Treino' : 'Criar Treino'} menuItems={menuItems}>
             <div className="criar-treino-page">
                 <div className="page-header">
                     <h2>{isEditMode ? `Editar Treino - ${selectedStudentName}` : 'Criar Novo Treino'}</h2>
@@ -307,6 +444,11 @@ export default function CriarTreino() {
                                         onClick={() => setActiveDay(index)}
                                     >
                                         <span className="day-letter">Treino {day.day_label}</span>
+                                        {day.day_name && (
+                                            <span style={{ fontSize: '11px', color: activeDay === index ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
+                                                {day.day_name}
+                                            </span>
+                                        )}
                                         {workoutDays.length > 1 && (
                                             <span
                                                 className="day-remove"
@@ -331,14 +473,19 @@ export default function CriarTreino() {
                         <div className="exercises-header">
                             <div className="current-day-info">
                                 <span className="current-day-label">Treino {currentDay.day_label}</span>
-                                <input
-                                    type="text"
-                                    className="form-input day-name-input"
-                                    placeholder="Nome do treino (Ex: Peito e Tríceps)"
+                                <MuscleGroupDropdown
                                     value={currentDay.day_name}
-                                    onChange={(e) => updateDayName(activeDay, e.target.value)}
+                                    onChange={(name) => updateDayName(activeDay, name)}
                                 />
                             </div>
+                            {catalogExercises.length > 0 && (
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ background: 'var(--primary-50)', color: 'var(--primary-700)', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                                        {catalogExercises.length} exercícios disponíveis
+                                    </span>
+                                    para sugestão automática
+                                </div>
+                            )}
                         </div>
 
                         <div className="exercise-list">
@@ -346,13 +493,10 @@ export default function CriarTreino() {
                                 <div key={exercise.id} className="exercise-item">
                                     <div className="exercise-item-header">
                                         <span className="exercise-item-number">{exIndex + 1}</span>
-                                        <input
-                                            type="text"
-                                            className="form-input exercise-item-name"
-                                            placeholder="Nome do exercício"
+                                        <ExerciseAutocomplete
                                             value={exercise.name}
-                                            style={{ flex: 1, marginLeft: 'var(--spacing-3)' }}
-                                            onChange={(e) => updateExercise(activeDay, exIndex, 'name', e.target.value)}
+                                            dayName={currentDay.day_name}
+                                            onChange={(name) => updateExercise(activeDay, exIndex, 'name', name)}
                                         />
                                         <div className="exercise-item-actions">
                                             <button
@@ -421,6 +565,6 @@ export default function CriarTreino() {
                     </div>
                 </div>
             </div>
-        </DashboardLayout>
+        </ProfessorLayout>
     );
 }

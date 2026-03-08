@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { DashboardLayout } from '../../../shared/components/layout';
+import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentId } from '../../../shared/services/student.service';
 import { getStudentWorkout, type Workout, type WorkoutDay, type Exercise } from '../../../shared/services/workout.service';
 import { createWorkoutDiary, type CreateDiaryData } from '../../../shared/services/workoutDiary.service';
@@ -548,7 +548,7 @@ export default function IniciarTreino() {
             : null;
 
         return (
-            <DashboardLayout title="Treino Finalizado" menuItems={menuItems}>
+            <AlunoLayout title="Treino Finalizado" menuItems={menuItems}>
                 <div className="pk-workout-container" style={{ maxWidth: 500, margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
                     {/* Hero */}
                     <div style={{
@@ -637,7 +637,7 @@ export default function IniciarTreino() {
                         ✅ Finalizar e Voltar
                     </button>
                 </div>
-            </DashboardLayout>
+            </AlunoLayout>
         );
     }
 
@@ -648,7 +648,7 @@ export default function IniciarTreino() {
             : 0;
 
         return (
-            <DashboardLayout title="Treino em Andamento" menuItems={menuItems}>
+            <AlunoLayout title="Treino em Andamento" menuItems={menuItems}>
                 <div className="pk-workout-container" style={{ maxWidth: 500, margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
                     {/* Header bar */}
                     <div style={{
@@ -829,13 +829,13 @@ export default function IniciarTreino() {
                         </button>
                     </div>
                 </div>
-            </DashboardLayout>
+            </AlunoLayout>
         );
     }
 
     // ─── SCREEN: SELECTION (default) ──────────────────
     return (
-        <DashboardLayout title="Iniciar Treino" menuItems={menuItems}>
+        <AlunoLayout title="Iniciar Treino" menuItems={menuItems}>
             <div className="pk-workout-container" style={{ maxWidth: 600, margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
                 {/* Header */}
                 <div style={{ marginBottom: 'var(--spacing-5)' }}>
@@ -975,6 +975,6 @@ export default function IniciarTreino() {
                     </>
                 )}
             </div>
-        </DashboardLayout>
+        </AlunoLayout>
     );
 }

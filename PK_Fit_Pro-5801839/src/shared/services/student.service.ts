@@ -28,28 +28,50 @@ export function getCurrentStudentInfo(): User | null {
 // Get student's professor info
 export async function getStudentProfessor(studentId: string): Promise<ApiResponse<{ id: string; name: string; email: string } | null>> {
     try {
-        const { data, error } = await supabase
+        // Step 1: Get the professor_id from the relationship table
+        const { data: relationship, error: relError } = await supabase
             .from('professor_students')
-            .select(`
-                professor_id,
-                users!professor_students_professor_id_fkey(id, name, email)
-            `)
+            .select('professor_id')
             .eq('student_id', studentId)
-            .single();
+            .limit(1)
+            .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') throw error;
+        if (relError) {
+            console.error('Error fetching professor_students:', relError);
+            throw relError;
+        }
 
-        if (!data || !data.users) {
+        if (!relationship || !relationship.professor_id) {
             return { success: true, data: null };
         }
 
-        const professor = data.users as any;
+        // Step 2: Get professor info from users table
+        const { data: professor, error: profError } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .eq('id', relationship.professor_id)
+            .single();
+
+        if (profError) {
+            console.error('Error fetching professor user:', profError);
+            // If we can't read the professor's user row due to RLS,
+            // at least return the professor_id so the button works
+            return {
+                success: true,
+                data: {
+                    id: relationship.professor_id,
+                    name: 'Professor',
+                    email: ''
+                }
+            };
+        }
+
         return {
             success: true,
             data: {
                 id: professor.id,
-                name: professor.name,
-                email: professor.email
+                name: professor.name || 'Professor',
+                email: professor.email || ''
             }
         };
     } catch (error) {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { DashboardLayout } from '../../../shared/components/layout';
+import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentId, getStudentActiveWorkout, getStudentProfessor } from '../../../shared/services/student.service';
-import { createWorkoutRequest } from '../../../shared/services/workoutRequest.service';
+import { createWorkoutRequest, checkWorkoutUpdateNotification, markWorkoutUpdateAsSeen } from '../../../shared/services/workoutRequest.service';
 import type { Workout } from '../../../shared/services/workout.service';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../../../features/adminGlobal/styles/academias.css';
@@ -17,6 +17,7 @@ export default function MeuTreino() {
     const [requestMessage, setRequestMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [showWorkoutUpdateBanner, setShowWorkoutUpdateBanner] = useState(false);
 
     useEffect(() => {
         const loadWorkout = async () => {
@@ -33,11 +34,25 @@ export default function MeuTreino() {
                 if (profResult.success && profResult.data) {
                     setProfessorId(profResult.data.id);
                 }
+
+                // Check for workout update notification
+                const notification = await checkWorkoutUpdateNotification(studentId);
+                if (notification.hasUpdate) {
+                    setShowWorkoutUpdateBanner(true);
+                }
             }
             setIsLoading(false);
         };
         loadWorkout();
     }, []);
+
+    const dismissUpdateBanner = async () => {
+        const studentId = getCurrentStudentId();
+        if (studentId) {
+            await markWorkoutUpdateAsSeen(studentId);
+        }
+        setShowWorkoutUpdateBanner(false);
+    };
 
     const handleRequestSubmit = async () => {
         const studentId = getCurrentStudentId();
@@ -69,20 +84,20 @@ export default function MeuTreino() {
 
     if (isLoading) {
         return (
-            <DashboardLayout title="Meu Treino" menuItems={menuItems}>
+            <AlunoLayout title="Minha Ficha de Treino" menuItems={menuItems}>
                 <div className="aluno-dashboard">
                     <div className="loading-state">
                         <div className="spinner"></div>
                         <p>Carregando treino...</p>
                     </div>
                 </div>
-            </DashboardLayout>
+            </AlunoLayout>
         );
     }
 
     if (!workout || !workout.days || workout.days.length === 0) {
         return (
-            <DashboardLayout title="Meu Treino" menuItems={menuItems}>
+            <AlunoLayout title="Minha Ficha de Treino" menuItems={menuItems}>
                 <div className="aluno-dashboard">
                     {/* Success/Error Message */}
                     {message && (
@@ -161,15 +176,33 @@ export default function MeuTreino() {
                         </div>
                     )}
                 </div>
-            </DashboardLayout>
+            </AlunoLayout>
         );
     }
 
     const currentDay = workout.days[activeDay];
 
     return (
-        <DashboardLayout title="Meu Treino" menuItems={menuItems}>
+        <AlunoLayout title="Minha Ficha de Treino" menuItems={menuItems}>
             <div className="aluno-dashboard">
+                {/* Workout Update Notification Banner */}
+                {showWorkoutUpdateBanner && (
+                    <div className="notification-banner success-banner">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                        </svg>
+                        <div className="notification-content">
+                            <strong>Treino Atualizado!</strong>
+                            <p>Seu professor atualizou sua ficha de treino. Confira as novas alterações!</p>
+                        </div>
+                        <button className="notification-close" onClick={dismissUpdateBanner}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
+
                 {/* Success/Error Message */}
                 {message && (
                     <div className={`message-toast ${message.type}`}>
@@ -177,16 +210,38 @@ export default function MeuTreino() {
                     </div>
                 )}
 
-                <div className="page-header">
-                    <h2>Minha Ficha de Treino</h2>
-                    {professorId && (
-                        <button className="request-workout-btn" onClick={() => setShowRequestModal(true)}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z" />
-                            </svg>
-                            Solicitar Alteração
-                        </button>
-                    )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-4)', flexWrap: 'wrap', gap: 'var(--spacing-2)' }}>
+                    <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, margin: 0 }}>Minha Ficha de Treino</h2>
+                    <button
+                        onClick={() => {
+                            if (!professorId) {
+                                setMessage({ type: 'error', text: 'Você ainda não possui um professor vinculado. Contate sua academia.' });
+                                return;
+                            }
+                            setShowRequestModal(true);
+                        }}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '10px 20px',
+                            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '12px',
+                            fontWeight: 700,
+                            fontSize: '14px',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
+                            transition: 'all 0.2s',
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                        </svg>
+                        Solicitar Troca de Treino
+                    </button>
                 </div>
 
                 {/* Day Tabs */}
@@ -284,6 +339,6 @@ export default function MeuTreino() {
                     </div>
                 )}
             </div>
-        </DashboardLayout>
+        </AlunoLayout>
     );
 }

@@ -26,15 +26,15 @@ import {
 
 // Professor
 import {
-    Dashboard as ProfessorDashboard,
     Alunos as ProfessorAlunos,
     CriarTreino,
-    Solicitacoes
+    Solicitacoes,
+    ProfessorPerfil,
+    ProfessorFeedbacks
 } from '../features/professor';
 
 // Aluno
 import {
-    Dashboard as AlunoDashboard,
     MeuTreino,
     Perfil,
     Feedback as AlunoFeedback,
@@ -120,7 +120,7 @@ export function AppRoutes() {
             {/* Professor Routes */}
             <Route path="/professor" element={
                 <ProtectedRoute allowedRoles={['PROFESSOR']}>
-                    <ProfessorDashboard />
+                    <ProfessorAlunos />
                 </ProtectedRoute>
             } />
             <Route path="/professor/alunos" element={
@@ -138,17 +138,25 @@ export function AppRoutes() {
                     <Solicitacoes />
                 </ProtectedRoute>
             } />
+            <Route path="/professor/perfil" element={
+                <ProtectedRoute allowedRoles={['PROFESSOR']}>
+                    <ProfessorPerfil />
+                </ProtectedRoute>
+            } />
+            <Route path="/professor/feedbacks" element={
+                <ProtectedRoute allowedRoles={['PROFESSOR']}>
+                    <ProfessorFeedbacks />
+                </ProtectedRoute>
+            } />
 
             {/* Aluno Routes */}
             <Route path="/aluno" element={
                 <ProtectedRoute allowedRoles={['ALUNO']}>
-                    <AlunoDashboard />
+                    <MeuTreino />
                 </ProtectedRoute>
             } />
             <Route path="/aluno/treino" element={
-                <ProtectedRoute allowedRoles={['ALUNO']}>
-                    <MeuTreino />
-                </ProtectedRoute>
+                <Navigate to="/aluno" replace />
             } />
             <Route path="/aluno/perfil" element={
                 <ProtectedRoute allowedRoles={['ALUNO']}>

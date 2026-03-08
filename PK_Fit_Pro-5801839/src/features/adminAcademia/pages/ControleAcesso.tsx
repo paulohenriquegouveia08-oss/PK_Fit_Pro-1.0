@@ -868,6 +868,11 @@ export default function ControleAcesso() {
                                                 onChange={e => setFormData({ ...formData, port: e.target.value })}
                                                 placeholder="80"
                                             />
+                                            <span className="ca-form-hint">
+                                                {formData.brand === 'TOP_DATA'
+                                                    ? '⚠️ Top Data usa porta 3570 (ou deixe 0 para usar o padrão)'
+                                                    : 'Padrão: 80 para Control ID e Henry, 3570 ou 0 para TopData'}
+                                            </span>
                                         </div>
                                     </div>
 

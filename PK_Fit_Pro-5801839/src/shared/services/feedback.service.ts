@@ -292,33 +292,47 @@ export async function getAcademyProfessorsList(
     academyId: string
 ): Promise<ApiResponse<{ id: string; name: string; email: string }[]>> {
     try {
-        // Use same pattern as working getAcademyProfessors in academyMember.service
+        // Step 1: Get all user IDs associated with this academy
         const { data: academyUsers, error: auError } = await supabase
             .from('academy_users')
             .select('user_id')
             .eq('academy_id', academyId);
 
-        if (auError) throw auError;
+        if (auError) {
+            console.error('Error fetching academy_users for professors:', auError);
+            throw auError;
+        }
 
         if (!academyUsers || academyUsers.length === 0) {
+            console.log('No academy_users found for academy:', academyId);
             return { success: true, data: [] };
         }
 
         const userIds = academyUsers.map(au => au.user_id);
 
+        // Step 2: Get professor info from users table
         const { data, error } = await supabase
             .from('users')
-            .select('id, name, email')
+            .select('id, name, email, role')
             .in('id', userIds)
-            .eq('role', 'PROFESSOR')
             .eq('is_active', true)
             .order('name', { ascending: true });
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error fetching users for professors:', error);
+            throw error;
+        }
+
+        // Filter professors in JS as fallback (in case role filter doesn't work with RLS)
+        const professors = (data || [])
+            .filter(u => u.role === 'PROFESSOR')
+            .map(u => ({ id: u.id, name: u.name, email: u.email }));
+
+        console.log(`Found ${professors.length} professors for academy ${academyId}`);
 
         return {
             success: true,
-            data: (data || []).map(u => ({ id: u.id, name: u.name, email: u.email }))
+            data: professors
         };
     } catch (error) {
         console.error('Error fetching professors list:', error);

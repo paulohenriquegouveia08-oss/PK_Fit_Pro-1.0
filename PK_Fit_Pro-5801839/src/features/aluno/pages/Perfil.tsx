@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DashboardLayout } from '../../../shared/components/layout';
+import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentInfo, getStudentProfessor, getCurrentStudentId } from '../../../shared/services/student.service';
 import { supabase } from '../../../shared/services/supabase';
 import type { User } from '../../../shared/types';
@@ -85,19 +85,19 @@ export default function Perfil() {
 
     if (isLoading) {
         return (
-            <DashboardLayout title="Meu Perfil" menuItems={menuItems}>
+            <AlunoLayout title="Meu Perfil" menuItems={menuItems}>
                 <div className="profile-page">
                     <div className="loading-state">
                         <div className="spinner"></div>
                         <p>Carregando perfil...</p>
                     </div>
                 </div>
-            </DashboardLayout>
+            </AlunoLayout>
         );
     }
 
     return (
-        <DashboardLayout title="Meu Perfil" menuItems={menuItems}>
+        <AlunoLayout title="Meu Perfil" menuItems={menuItems}>
             <div className="profile-page">
                 <div className="profile-card">
                     <div className="profile-header">
@@ -181,6 +181,6 @@ export default function Perfil() {
                     </div>
                 </div>
             </div>
-        </DashboardLayout>
+        </AlunoLayout>
     );
 }

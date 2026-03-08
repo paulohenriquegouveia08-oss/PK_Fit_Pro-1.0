@@ -12,7 +12,7 @@ import {
     Filler
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
-import { DashboardLayout } from '../../../shared/components/layout';
+import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentId } from '../../../shared/services/student.service';
 import {
     getLoadEvolution,
@@ -355,14 +355,14 @@ export default function Evolucao() {
 
     if (isLoading) {
         return (
-            <DashboardLayout title="Evolução" menuItems={menuItems}>
+            <AlunoLayout title="Evolução" menuItems={menuItems}>
                 <div className="loading-state"><div className="spinner" /><p>Carregando...</p></div>
-            </DashboardLayout>
+            </AlunoLayout>
         );
     }
 
     return (
-        <DashboardLayout title="Evolução" menuItems={menuItems}>
+        <AlunoLayout title="Evolução" menuItems={menuItems}>
             <div style={{ padding: 0 }}>
                 {/* Header */}
                 <div style={{ marginBottom: 'var(--spacing-5)' }}>
@@ -655,6 +655,6 @@ export default function Evolucao() {
                     Os dados são baseados nos treinos concluídos via Iniciar Treino
                 </div>
             </div>
-        </DashboardLayout>
+        </AlunoLayout>
     );
 }

@@ -1,0 +1,351 @@
+/* ==========================================
+   ALUNO LAYOUT — Mobile-First Bottom Navbar
+   ========================================== */
+
+.aluno-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--bg-primary, #f9fafb);
+}
+
+/* ==========================================
+   HEADER
+   ========================================== */
+
+.aluno-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-3) var(--spacing-4);
+    background: white;
+    border-bottom: 1px solid var(--gray-100);
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+}
+
+.aluno-header-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-lg);
+    color: var(--gray-900);
+    text-decoration: none;
+}
+
+.aluno-header-logo-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--primary-600), var(--secondary-500));
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.aluno-header-logo-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.aluno-header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.aluno-header-user {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.aluno-header-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary-500), var(--secondary-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+}
+
+.aluno-header-name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--gray-700);
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.aluno-logout-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-400);
+    transition: all var(--transition-fast);
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.aluno-logout-btn:hover {
+    background: var(--gray-100);
+    color: var(--error-500);
+}
+
+/* ==========================================
+   MAIN CONTENT
+   ========================================== */
+
+.aluno-main {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 90px;
+    /* Space for bottom nav */
+}
+
+.aluno-main-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--spacing-4);
+}
+
+/* Page title inside content */
+.aluno-page-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--gray-900);
+    margin-bottom: var(--spacing-4);
+}
+
+/* ==========================================
+   BOTTOM NAVBAR
+   ========================================== */
+
+.aluno-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--gray-100);
+    padding: var(--spacing-1) 0;
+    padding-bottom: env(safe-area-inset-bottom, var(--spacing-1));
+    z-index: var(--z-fixed);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.aluno-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: var(--spacing-2) var(--spacing-3);
+    color: var(--gray-400);
+    text-decoration: none;
+    font-size: 10px;
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-fast);
+    position: relative;
+    min-width: 60px;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.aluno-nav-item svg {
+    width: 22px;
+    height: 22px;
+    transition: all var(--transition-fast);
+}
+
+.aluno-nav-item.active {
+    color: var(--primary-600);
+}
+
+.aluno-nav-item.active svg {
+    transform: scale(1.1);
+}
+
+/* Active indicator dot */
+.aluno-nav-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: var(--primary-600);
+}
+
+/* ==========================================
+   CENTER BUTTON (Iniciar Treino)
+   ========================================== */
+
+.aluno-nav-item.center {
+    position: relative;
+    padding: 0;
+    margin-top: -24px;
+    min-width: auto;
+}
+
+.aluno-nav-item.center .aluno-nav-center-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary-600), var(--secondary-500));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+        0 4px 15px rgba(59, 130, 246, 0.4),
+        0 0 30px rgba(59, 130, 246, 0.15);
+    transition: all var(--transition-fast);
+    position: relative;
+    z-index: 2;
+}
+
+.aluno-nav-item.center .aluno-nav-center-btn svg {
+    width: 26px;
+    height: 26px;
+    color: white;
+}
+
+.aluno-nav-item.center:hover .aluno-nav-center-btn {
+    transform: scale(1.08);
+    box-shadow:
+        0 6px 20px rgba(59, 130, 246, 0.5),
+        0 0 40px rgba(59, 130, 246, 0.2);
+}
+
+.aluno-nav-item.center.active .aluno-nav-center-btn {
+    box-shadow:
+        0 4px 20px rgba(59, 130, 246, 0.6),
+        0 0 50px rgba(59, 130, 246, 0.25);
+}
+
+/* Glow animation for center button */
+.aluno-nav-center-glow {
+    position: absolute;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary-500), var(--secondary-400));
+    opacity: 0.3;
+    animation: centerGlow 2.5s ease-in-out infinite;
+    z-index: 1;
+}
+
+@keyframes centerGlow {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.3;
+    }
+
+    50% {
+        transform: scale(1.35);
+        opacity: 0;
+    }
+}
+
+.aluno-nav-item.center .aluno-nav-center-label {
+    font-size: 9px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--primary-600);
+    margin-top: var(--spacing-1);
+    white-space: nowrap;
+}
+
+/* Center button — no dot indicator */
+.aluno-nav-item.center.active::after {
+    display: none;
+}
+
+/* ==========================================
+   RESPONSIVE — DESKTOP
+   ========================================== */
+
+@media (min-width: 769px) {
+    .aluno-header {
+        padding: var(--spacing-3) var(--spacing-8);
+    }
+
+    .aluno-main-container {
+        padding: var(--spacing-6);
+    }
+
+    .aluno-bottom-nav {
+        max-width: 480px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+        border: 1px solid var(--gray-100);
+        border-bottom: none;
+    }
+
+    .aluno-nav-item {
+        font-size: 11px;
+    }
+
+    .aluno-nav-item svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .aluno-header-name {
+        max-width: 200px;
+    }
+}
+
+/* ==========================================
+   RESPONSIVE — SMALL MOBILE
+   ========================================== */
+
+@media (max-width: 360px) {
+    .aluno-nav-item {
+        min-width: 50px;
+        padding: var(--spacing-2) var(--spacing-1);
+        font-size: 9px;
+    }
+
+    .aluno-nav-item svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .aluno-nav-item.center .aluno-nav-center-btn {
+        width: 50px;
+        height: 50px;
+    }
+
+    .aluno-nav-center-glow {
+        width: 50px;
+        height: 50px;
+    }
+
+    .aluno-header-name {
+        display: none;
+    }
+}

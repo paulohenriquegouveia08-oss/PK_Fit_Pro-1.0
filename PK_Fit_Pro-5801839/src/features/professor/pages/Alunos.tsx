@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DashboardLayout } from '../../../shared/components/layout';
+import { ProfessorLayout } from '../../../shared/components/layout';
 import { getProfessorStudents, getCurrentProfessorId, type ProfessorStudent } from '../../../shared/services/professor.service';
 import { getStudentWorkout, type Workout } from '../../../shared/services/workout.service';
 import '../../../features/adminGlobal/styles/dashboard.css';
@@ -75,7 +75,7 @@ export default function Alunos() {
     };
 
     return (
-        <DashboardLayout title="Meus Alunos" menuItems={menuItems}>
+        <ProfessorLayout title="Meus Alunos" menuItems={menuItems}>
             <div className="usuarios-page">
                 <div className="page-header">
                     <h2>Meus Alunos</h2>
@@ -297,6 +297,6 @@ export default function Alunos() {
                     </div>
                 </div>
             )}
-        </DashboardLayout>
+        </ProfessorLayout>
     );
 }

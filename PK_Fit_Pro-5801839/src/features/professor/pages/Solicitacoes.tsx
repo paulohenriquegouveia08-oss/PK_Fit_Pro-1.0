@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DashboardLayout } from '../../../shared/components/layout';
+import { ProfessorLayout } from '../../../shared/components/layout';
 import { getCurrentProfessorId } from '../../../shared/services/professor.service';
 import {
     getAllProfessorRequests,
@@ -98,7 +98,7 @@ export default function Solicitacoes() {
     };
 
     return (
-        <DashboardLayout title="Solicitações" menuItems={menuItems}>
+        <ProfessorLayout title="Solicitações" menuItems={menuItems}>
             <div className="professor-dashboard">
                 <div className="page-header">
                     <h2>Solicitações de Treino</h2>
@@ -274,6 +274,6 @@ export default function Solicitacoes() {
                     </>
                 )}
             </div>
-        </DashboardLayout>
+        </ProfessorLayout>
     );
 }

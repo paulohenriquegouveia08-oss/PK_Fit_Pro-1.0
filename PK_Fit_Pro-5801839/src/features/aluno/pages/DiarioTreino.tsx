@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DashboardLayout } from '../../../shared/components/layout';
+import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentId } from '../../../shared/services/student.service';
 import { supabase } from '../../../shared/services/supabase';
 import {
@@ -164,7 +164,7 @@ export default function DiarioTreino() {
     const gridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 'var(--spacing-3)' };
 
     return (
-        <DashboardLayout title="Diário de Treino" menuItems={menuItems}>
+        <AlunoLayout title="Diário de Treino" menuItems={menuItems}>
             <div style={{ padding: 0 }}>
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--spacing-6)', flexWrap: 'wrap', gap: 'var(--spacing-3)' }}>
@@ -597,6 +597,6 @@ export default function DiarioTreino() {
                     </div>
                 )}
             </div>
-        </DashboardLayout>
+        </AlunoLayout>
     );
 }

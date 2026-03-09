@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '../../../shared/components/layout';
 import { getAcademies, type Academy } from '../../../shared/services/academy.service';
 import { supabase } from '../../../shared/services/supabase';
+import ChangePassword from '../../../shared/components/ChangePassword';
 import '../styles/dashboard.css';
 import { adminGlobalMenuItems as menuItems } from '../../../shared/config/adminGlobalMenu';
 
@@ -220,6 +221,15 @@ export default function Dashboard() {
                             </tbody>
                         </table>
                     )}
+                </div>
+                {/* Change Password */}
+                <div className="dashboard-section">
+                    <div className="section-header">
+                        <h2 className="section-title">Configurações</h2>
+                    </div>
+                    <div style={{ maxWidth: '500px' }}>
+                        <ChangePassword />
+                    </div>
                 </div>
             </div>
         </DashboardLayout>

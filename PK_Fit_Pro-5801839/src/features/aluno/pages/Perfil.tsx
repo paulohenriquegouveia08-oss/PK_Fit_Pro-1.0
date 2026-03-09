@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentInfo, getStudentProfessor, getCurrentStudentId } from '../../../shared/services/student.service';
 import { supabase } from '../../../shared/services/supabase';
+import ChangePassword from '../../../shared/components/ChangePassword';
 import type { User } from '../../../shared/types';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../../../features/adminGlobal/styles/academias.css';
@@ -179,6 +180,11 @@ export default function Perfil() {
                             {isSaving ? 'Salvando...' : 'Salvar Alterações'}
                         </button>
                     </div>
+                </div>
+
+                {/* Change Password Section */}
+                <div style={{ marginTop: 'var(--spacing-4)' }}>
+                    <ChangePassword />
                 </div>
             </div>
         </AlunoLayout>

@@ -41,8 +41,15 @@ const fmtDuration = (s: number) => {
 };
 
 const parseLoad = (load: string): number => {
-    const n = parseFloat(load.replace(/[^\d.,]/g, '').replace(',', '.'));
-    return isNaN(n) ? 0 : n;
+    const num = parseFloat(load.replace(/[^0-9.,]/g, '').replace(',', '.'));
+    return isNaN(num) ? 0 : num;
+};
+
+// Extrai o mínimo de reps de strings como "10-12", "10", "8-10"
+const parseMinReps = (reps: string): number => {
+    if (!reps) return 0;
+    const match = reps.match(/(\d+)/);
+    return match ? parseInt(match[1]) : 0;
 };
 
 // ─── Component ────────────────────────────────────────
@@ -188,7 +195,7 @@ export default function IniciarTreino() {
                 // Pre-fill suggested values
                 const firstEx = day.exercises[0];
                 if (firstEx) {
-                    setRepsInput('0');
+                    setRepsInput(String(parseMinReps(firstEx.reps)));
                     setLoadInput(firstEx.load || '');
                 }
 
@@ -261,7 +268,7 @@ export default function IniciarTreino() {
             // Pre-fill next exercise values
             const nextEx = session.day.exercises[nextExerciseIndex];
             if (nextEx) {
-                setRepsInput('0');
+                setRepsInput(String(parseMinReps(nextEx.reps)));
                 setLoadInput(nextEx.load || '');
             }
 

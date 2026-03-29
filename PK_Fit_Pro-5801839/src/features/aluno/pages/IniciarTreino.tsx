@@ -98,6 +98,10 @@ export default function IniciarTreino() {
         dayName: string;
     } | null>(null);
 
+    // Modals
+    const [isReordering, setIsReordering] = useState(false);
+    const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+
     // ─── Init ─────────────────────────────────────────
     useEffect(() => {
         const init = async () => {
@@ -696,12 +700,23 @@ export default function IniciarTreino() {
                                     {currentExercise.name}
                                 </h3>
                             </div>
-                            <div style={{
-                                ...pill,
-                                background: 'linear-gradient(135deg, #818cf8, #6366f1)',
-                                color: '#fff'
-                            }}>
-                                Série {currentSetDisplay}/{totalSetsForCurrentExercise}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                                <div style={{
+                                    ...pill,
+                                    background: 'linear-gradient(135deg, #818cf8, #6366f1)',
+                                    color: '#fff'
+                                }}>
+                                    Série {currentSetDisplay}/{totalSetsForCurrentExercise}
+                                </div>
+                                <button
+                                    onClick={() => setIsReordering(true)}
+                                    style={{
+                                        background: 'transparent', border: '1px solid var(--border-color)',
+                                        color: 'var(--text-primary)', padding: '4px 8px', borderRadius: '4px',
+                                        fontSize: '11px', cursor: 'pointer', fontWeight: 600
+                                    }}>
+                                    Alterar Ordem
+                                </button>
                             </div>
                         </div>
 
@@ -735,12 +750,12 @@ export default function IniciarTreino() {
                     {/* Input card */}
                     <div style={{ ...card, marginBottom: 'var(--spacing-4)' }}>
                         <h4 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginBottom: 'var(--spacing-3)' }}>
-                            📝 Registrar Série
+                            Registrar Série
                         </h4>
                         {/* Mobile-only load input (above reps) */}
                         <div className="pk-mobile-only" style={{ display: 'none', marginBottom: 'var(--spacing-3)' }}>
                             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                                🏋️ Carga (kg)
+                                Carga (kg)
                             </label>
                             <input
                                 type="number" inputMode="decimal" min="0" step="0.5" placeholder="0"
@@ -821,20 +836,147 @@ export default function IniciarTreino() {
                             </div>
                         </div>
 
-                        <button
-                            onClick={handleFinishSet}
-                            disabled={isSaving}
-                            style={{
-                                width: '100%', padding: '14px',
-                                background: 'linear-gradient(135deg, #34d399, #10b981)',
-                                color: '#fff', border: 'none', borderRadius: 'var(--radius-md)',
-                                fontSize: '16px', fontWeight: 800, cursor: 'pointer',
-                                opacity: isSaving ? 0.7 : 1
-                            }}
-                        >
-                            {isSaving ? 'Salvando...' : '✔ Finalizar Série'}
-                        </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <button
+                                onClick={handleFinishSet}
+                                disabled={isSaving}
+                                style={{
+                                    width: '100%', padding: '14px',
+                                    background: 'linear-gradient(135deg, #34d399, #10b981)',
+                                    color: '#fff', border: 'none', borderRadius: 'var(--radius-md)',
+                                    fontSize: '16px', fontWeight: 800, cursor: 'pointer',
+                                    opacity: isSaving ? 0.7 : 1
+                                }}
+                            >
+                                {isSaving ? 'Salvando...' : 'Finalizar Série'}
+                            </button>
+
+                            <button
+                                onClick={() => setShowFinishConfirm(true)}
+                                disabled={isSaving}
+                                style={{
+                                    width: '100%', padding: '14px',
+                                    background: 'transparent',
+                                    color: '#ef4444', border: '2px solid #ef4444', borderRadius: 'var(--radius-md)',
+                                    fontSize: '16px', fontWeight: 700, cursor: 'pointer',
+                                    opacity: isSaving ? 0.7 : 1
+                                }}
+                            >
+                                Encerrar Treino Antecipadamente
+                            </button>
+                        </div>
                     </div>
+
+                    {/* Reorder Modal */}
+                    {isReordering && (
+                        <div style={{
+                            position: 'fixed', inset: 0, background: 'rgba(15, 15, 26, 0.95)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            zIndex: 10000, padding: '24px'
+                        }}>
+                            <div style={{
+                                background: 'var(--background-primary)', width: '100%', maxWidth: 400,
+                                borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)',
+                                padding: 'var(--spacing-4)', maxHeight: '90vh', overflowY: 'auto'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-4)' }}>
+                                    <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Alterar Ordem</h3>
+                                    <button onClick={() => setIsReordering(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '24px', cursor: 'pointer' }}>&times;</button>
+                                </div>
+
+                                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                                    Selecione o exercício que deseja fazer agora:
+                                </p>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {session.day.exercises.slice(session.setIndex === 0 ? session.exerciseIndex : session.exerciseIndex + 1).map((ex, idx) => {
+                                        const originalIndex = (session.setIndex === 0 ? session.exerciseIndex : session.exerciseIndex + 1) + idx;
+                                        return (
+                                            <div key={ex.id || idx} style={{
+                                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                padding: '12px', background: 'var(--background-secondary)',
+                                                borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)'
+                                            }}>
+                                                <div style={{ fontSize: '14px', fontWeight: 600 }}>{ex.name}</div>
+                                                <button
+                                                    onClick={() => {
+                                                        const newExercises = [...session.day.exercises];
+                                                        const targetEx = newExercises.splice(originalIndex, 1)[0];
+                                                        const insertIndex = session.setIndex === 0 ? session.exerciseIndex : session.exerciseIndex + 1;
+                                                        newExercises.splice(insertIndex, 0, targetEx);
+
+                                                        setSession({
+                                                            ...session,
+                                                            day: {
+                                                                ...session.day,
+                                                                exercises: newExercises
+                                                            }
+                                                        });
+
+                                                        if (session.setIndex === 0) {
+                                                            setRepsInput(String(parseMinReps(targetEx.reps)));
+                                                            setLoadInput(targetEx.load || '');
+                                                        }
+
+                                                        setIsReordering(false);
+                                                    }}
+                                                    style={{
+                                                        background: 'var(--primary-500)', color: '#fff', border: 'none',
+                                                        padding: '6px 12px', borderRadius: '4px', fontSize: '12px',
+                                                        fontWeight: 700, cursor: 'pointer'
+                                                    }}>
+                                                    Fazer Agora
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Finish Confirm Modal */}
+                    {showFinishConfirm && (
+                        <div style={{
+                            position: 'fixed', inset: 0, background: 'rgba(15, 15, 26, 0.95)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            zIndex: 10000, padding: '24px'
+                        }}>
+                            <div style={{
+                                background: 'var(--background-primary)', width: '100%', maxWidth: 400,
+                                borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)',
+                                padding: 'var(--spacing-5)'
+                            }}>
+                                <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', color: '#ef4444' }}>
+                                    Encerrar Treino
+                                </h3>
+                                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.5 }}>
+                                    Tem certeza que deseja encerrar o treino antes de completá-lo? Apenas as séries salvas até aqui serão registradas.
+                                </p>
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                    <button
+                                        onClick={() => setShowFinishConfirm(false)}
+                                        style={{
+                                            flex: 1, padding: '12px', background: 'transparent', border: '1px solid var(--border-color)',
+                                            color: 'var(--text-primary)', borderRadius: 'var(--radius-md)', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+                                        }}>
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowFinishConfirm(false);
+                                            finishWorkout(session.setsCompleted);
+                                        }}
+                                        style={{
+                                            flex: 1, padding: '12px', background: '#ef4444', border: 'none',
+                                            color: '#fff', borderRadius: 'var(--radius-md)', fontSize: '14px', fontWeight: 700, cursor: 'pointer'
+                                        }}>
+                                        Sim, Encerrar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </AlunoLayout>
         );

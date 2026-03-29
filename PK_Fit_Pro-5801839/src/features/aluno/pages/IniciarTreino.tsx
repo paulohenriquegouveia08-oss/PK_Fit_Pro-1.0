@@ -870,21 +870,22 @@ export default function IniciarTreino() {
                     {/* Reorder Modal */}
                     {isReordering && (
                         <div style={{
-                            position: 'fixed', inset: 0, background: 'rgba(15, 15, 26, 0.95)',
+                            position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.6)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             zIndex: 10000, padding: '24px'
                         }}>
                             <div style={{
-                                background: 'var(--background-primary)', width: '100%', maxWidth: 400,
-                                borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)',
-                                padding: 'var(--spacing-4)', maxHeight: '90vh', overflowY: 'auto'
+                                background: '#1e293b', width: '100%', maxWidth: 400,
+                                borderRadius: '16px', border: '1px solid #334155',
+                                padding: '20px', maxHeight: '90vh', overflowY: 'auto',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
                             }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-4)' }}>
-                                    <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Alterar Ordem</h3>
-                                    <button onClick={() => setIsReordering(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '24px', cursor: 'pointer' }}>&times;</button>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                    <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#f8fafc' }}>Alterar Ordem</h3>
+                                    <button onClick={() => setIsReordering(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '24px', cursor: 'pointer' }}>&times;</button>
                                 </div>
 
-                                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                                <p style={{ fontSize: '13px', color: '#cbd5e1', marginBottom: '16px' }}>
                                     Selecione o exercício que deseja fazer agora:
                                 </p>
 
@@ -894,10 +895,10 @@ export default function IniciarTreino() {
                                         return (
                                             <div key={ex.id || idx} style={{
                                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                                padding: '12px', background: 'var(--background-secondary)',
-                                                borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)'
+                                                padding: '12px', background: '#0f172a',
+                                                borderRadius: '8px', border: '1px solid #334155'
                                             }}>
-                                                <div style={{ fontSize: '14px', fontWeight: 600 }}>{ex.name}</div>
+                                                <div style={{ fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>{ex.name}</div>
                                                 <button
                                                     onClick={() => {
                                                         const newExercises = [...session.day.exercises];
@@ -921,7 +922,7 @@ export default function IniciarTreino() {
                                                         setIsReordering(false);
                                                     }}
                                                     style={{
-                                                        background: 'var(--primary-500)', color: '#fff', border: 'none',
+                                                        background: '#3b82f6', color: '#ffffff', border: 'none',
                                                         padding: '6px 12px', borderRadius: '4px', fontSize: '12px',
                                                         fontWeight: 700, cursor: 'pointer'
                                                     }}>
@@ -938,27 +939,27 @@ export default function IniciarTreino() {
                     {/* Finish Confirm Modal */}
                     {showFinishConfirm && (
                         <div style={{
-                            position: 'fixed', inset: 0, background: 'rgba(15, 15, 26, 0.95)',
+                            position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.6)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             zIndex: 10000, padding: '24px'
                         }}>
                             <div style={{
-                                background: 'var(--background-primary)', width: '100%', maxWidth: 400,
-                                borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)',
-                                padding: 'var(--spacing-5)'
+                                background: '#1e293b', width: '100%', maxWidth: 400,
+                                borderRadius: '16px', border: '1px solid #334155',
+                                padding: '24px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
                             }}>
                                 <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', color: '#ef4444' }}>
                                     Encerrar Treino
                                 </h3>
-                                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.5 }}>
+                                <p style={{ fontSize: '14px', color: '#cbd5e1', marginBottom: '24px', lineHeight: 1.5 }}>
                                     Tem certeza que deseja encerrar o treino antes de completá-lo? Apenas as séries salvas até aqui serão registradas.
                                 </p>
                                 <div style={{ display: 'flex', gap: '12px' }}>
                                     <button
                                         onClick={() => setShowFinishConfirm(false)}
                                         style={{
-                                            flex: 1, padding: '12px', background: 'transparent', border: '1px solid var(--border-color)',
-                                            color: 'var(--text-primary)', borderRadius: 'var(--radius-md)', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+                                            flex: 1, padding: '12px', background: 'transparent', border: '1px solid #cbd5e1',
+                                            color: '#f8fafc', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
                                         }}>
                                         Cancelar
                                     </button>
@@ -969,7 +970,7 @@ export default function IniciarTreino() {
                                         }}
                                         style={{
                                             flex: 1, padding: '12px', background: '#ef4444', border: 'none',
-                                            color: '#fff', borderRadius: 'var(--radius-md)', fontSize: '14px', fontWeight: 700, cursor: 'pointer'
+                                            color: '#ffffff', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer'
                                         }}>
                                         Sim, Encerrar
                                     </button>

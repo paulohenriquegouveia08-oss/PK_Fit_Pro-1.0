@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlunoLayout } from '../../../shared/components/layout';
-import { getCurrentStudentId, getStudentProfessor } from '../../../shared/services/student.service';
+import { getCurrentStudentId } from '../../../shared/services/student.service';
 import { createWorkout, getStudentWorkout, updateWorkout, type Exercise, type WorkoutDay } from '../../../shared/services/workout.service';
 import { allMuscleGroups, getExercisesForDayName } from '../../../shared/data/exerciseCatalog';
 import '../../../features/adminGlobal/styles/dashboard.css';

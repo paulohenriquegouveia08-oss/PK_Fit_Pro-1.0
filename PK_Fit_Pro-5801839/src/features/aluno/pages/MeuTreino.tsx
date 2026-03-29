@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentId, getStudentActiveWorkout, getStudentProfessor } from '../../../shared/services/student.service';
 import { createWorkoutRequest, checkWorkoutUpdateNotification, markWorkoutUpdateAsSeen } from '../../../shared/services/workoutRequest.service';
@@ -9,6 +10,7 @@ import '../styles/aluno.css';
 import { alunoMenuItems as menuItems } from '../../../shared/config/alunoMenu';
 
 export default function MeuTreino() {
+    const navigate = useNavigate();
     const [workout, setWorkout] = useState<Workout | null>(null);
     const [professorId, setProfessorId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -121,7 +123,7 @@ export default function MeuTreino() {
                                 <button
                                     className="btn-add"
                                     onClick={() => setShowRequestModal(true)}
-                                    style={{ fontSize: 'var(--font-size-base)', padding: 'var(--spacing-3) var(--spacing-6)' }}
+                                    style={{ fontSize: 'var(--font-size-base)', padding: 'var(--spacing-3) var(--spacing-6)', marginRight: 'var(--spacing-3)' }}
                                 >
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z" />
@@ -129,6 +131,16 @@ export default function MeuTreino() {
                                     Solicitar Ficha de Treino
                                 </button>
                             )}
+                            <button
+                                className="btn-add"
+                                onClick={() => navigate('/aluno/criar-treino')}
+                                style={{ fontSize: 'var(--font-size-base)', padding: 'var(--spacing-3) var(--spacing-6)', background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                                </svg>
+                                Criar Minha Própria Ficha
+                            </button>
                         </div>
                     </div>
 
@@ -212,36 +224,58 @@ export default function MeuTreino() {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-4)', flexWrap: 'wrap', gap: 'var(--spacing-2)' }}>
                     <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, margin: 0 }}>Minha Ficha de Treino</h2>
-                    <button
-                        onClick={() => {
-                            if (!professorId) {
-                                setMessage({ type: 'error', text: 'Você ainda não possui um professor vinculado. Contate sua academia.' });
-                                return;
-                            }
-                            setShowRequestModal(true);
-                        }}
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '10px 20px',
-                            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: '12px',
-                            fontWeight: 700,
-                            fontSize: '14px',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
-                            transition: 'all 0.2s',
-                            whiteSpace: 'nowrap'
-                        }}
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-                        </svg>
-                        Solicitar Troca de Treino
-                    </button>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
+                        <button
+                            onClick={() => {
+                                if (!professorId) {
+                                    setMessage({ type: 'error', text: 'Você ainda não possui um professor vinculado. Contate sua academia.' });
+                                    return;
+                                }
+                                setShowRequestModal(true);
+                            }}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '10px 20px',
+                                background: 'rgba(255,255,255,0.05)',
+                                color: 'var(--text-primary)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '12px',
+                                fontWeight: 600,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                whiteSpace: 'nowrap'
+                            }}
+                        >
+                            Solicitar Troca
+                        </button>
+                        <button
+                            onClick={() => navigate('/aluno/criar-treino')}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '10px 20px',
+                                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '12px',
+                                fontWeight: 700,
+                                fontSize: '14px',
+                                cursor: 'pointer',
+                                boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
+                                transition: 'all 0.2s',
+                                whiteSpace: 'nowrap'
+                            }}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                            </svg>
+                            Editar Meu Treino
+                        </button>
+                    </div>
                 </div>
 
                 {/* Day Tabs */}

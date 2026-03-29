@@ -178,10 +178,11 @@ export default function CriarTreino() {
     const [activeDay, setActiveDay] = useState(0);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-    // Edit mode state
     const [isEditMode, setIsEditMode] = useState(false);
     const [existingWorkoutId, setExistingWorkoutId] = useState<string | null>(null);
+    const [existingWorkoutIsSelfCreated, setExistingWorkoutIsSelfCreated] = useState(false);
     const [loadingWorkout, setLoadingWorkout] = useState(false);
+    const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
 
     useEffect(() => {
         const loadStudents = async () => {
@@ -215,12 +216,14 @@ export default function CriarTreino() {
                 // Workout exists - enter edit mode
                 setIsEditMode(true);
                 setExistingWorkoutId(result.data.id);
+                setExistingWorkoutIsSelfCreated(result.data.student_id === result.data.professor_id);
                 setWorkoutDays(result.data.days);
                 setActiveDay(0);
             } else {
                 // No workout - create mode
                 setIsEditMode(false);
                 setExistingWorkoutId(null);
+                setExistingWorkoutIsSelfCreated(false);
                 setWorkoutDays([createEmptyDay('A')]);
                 setActiveDay(0);
             }
@@ -285,6 +288,56 @@ export default function CriarTreino() {
         setWorkoutDays(newDays);
     };
 
+    const handleDragStart = (e: React.DragEvent, exIndex: number) => {
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', exIndex.toString());
+        }
+        setDraggedItemIndex(exIndex);
+    };
+
+    const handleDragOver = (e: React.DragEvent, exIndex: number) => {
+        e.preventDefault();
+        if (draggedItemIndex === null) return;
+        if (draggedItemIndex === exIndex) return;
+
+        const newDays = [...workoutDays];
+        const day = newDays[activeDay];
+        const exercises = [...day.exercises];
+
+        const draggedEx = exercises[draggedItemIndex];
+        exercises.splice(draggedItemIndex, 1);
+        exercises.splice(exIndex, 0, draggedEx);
+
+        day.exercises = exercises;
+        setWorkoutDays(newDays);
+        setDraggedItemIndex(exIndex);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedItemIndex(null);
+    };
+
+    const moveExercise = (dayIndex: number, exIndex: number, direction: 'up' | 'down') => {
+        const newDays = [...workoutDays];
+        const exercises = [...newDays[dayIndex].exercises];
+
+        if (direction === 'up' && exIndex > 0) {
+            const temp = exercises[exIndex];
+            exercises[exIndex] = exercises[exIndex - 1];
+            exercises[exIndex - 1] = temp;
+        } else if (direction === 'down' && exIndex < exercises.length - 1) {
+            const temp = exercises[exIndex];
+            exercises[exIndex] = exercises[exIndex + 1];
+            exercises[exIndex + 1] = temp;
+        } else {
+            return;
+        }
+
+        newDays[dayIndex].exercises = exercises;
+        setWorkoutDays(newDays);
+    };
+
     const handleSave = async () => {
         if (!selectedStudent) {
             setMessage({ type: 'error', text: 'Selecione um aluno!' });
@@ -324,7 +377,7 @@ export default function CriarTreino() {
                 day_label: day.day_label,
                 day_name: day.day_name,
                 exercises: day.exercises
-            })));
+            })), selectedStudent, professorId);
 
             if (result.success) {
                 // Notify student about the update
@@ -393,7 +446,17 @@ export default function CriarTreino() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
                         </svg>
-                        <span>Modo de edição - você está editando o treino existente deste aluno</span>
+                        <span>Modo de edição - você está editando o treino existente deste aluno.</span>
+                    </div>
+                )}
+
+                {/* Self Created Banner */}
+                {isEditMode && existingWorkoutIsSelfCreated && (
+                    <div className="edit-mode-banner" style={{ background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.2)', marginTop: 'var(--spacing-3)' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                        </svg>
+                        <span><strong>Nota:</strong> Este treino foi criado pelo próprio aluno e você está prestando uma revisão.</span>
                     </div>
                 )}
 
@@ -490,14 +553,49 @@ export default function CriarTreino() {
 
                         <div className="exercise-list">
                             {currentDay.exercises.map((exercise, exIndex) => (
-                                <div key={exercise.id} className="exercise-item">
+                                <div
+                                    key={exercise.id}
+                                    className="exercise-item"
+                                    style={{
+                                        opacity: draggedItemIndex === exIndex ? 0.5 : 1,
+                                        transform: draggedItemIndex === exIndex ? 'scale(0.98)' : 'none',
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, exIndex)}
+                                    onDragOver={(e) => handleDragOver(e, exIndex)}
+                                    onDragEnd={handleDragEnd}
+                                >
                                     <div className="exercise-item-header">
-                                        <span className="exercise-item-number">{exIndex + 1}</span>
-                                        <ExerciseAutocomplete
-                                            value={exercise.name}
-                                            dayName={currentDay.day_name}
-                                            onChange={(name) => updateExercise(activeDay, exIndex, 'name', name)}
-                                        />
+                                        {/* Drag Handle and Order Arrows */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '4px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginRight: '8px' }}>
+                                            <button type="button" onClick={() => moveExercise(activeDay, exIndex, 'up')} disabled={exIndex === 0} style={{ background: 'none', border: 'none', color: exIndex === 0 ? 'rgba(255,255,255,0.1)' : 'var(--text-secondary)', cursor: exIndex === 0 ? 'default' : 'pointer', padding: 0 }}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z" />
+                                                </svg>
+                                            </button>
+
+                                            <div style={{ cursor: 'grab', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'center' }}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                                                </svg>
+                                            </div>
+
+                                            <button type="button" onClick={() => moveExercise(activeDay, exIndex, 'down')} disabled={exIndex === currentDay.exercises.length - 1} style={{ background: 'none', border: 'none', color: exIndex === currentDay.exercises.length - 1 ? 'rgba(255,255,255,0.1)' : 'var(--text-secondary)', cursor: exIndex === currentDay.exercises.length - 1 ? 'default' : 'pointer', padding: 0 }}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        <span className="exercise-item-number" style={{ flexShrink: 0 }}>{exIndex + 1}</span>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <ExerciseAutocomplete
+                                                value={exercise.name}
+                                                dayName={currentDay.day_name}
+                                                onChange={(name) => updateExercise(activeDay, exIndex, 'name', name)}
+                                            />
+                                        </div>
                                         <div className="exercise-item-actions">
                                             <button
                                                 className="action-btn delete"

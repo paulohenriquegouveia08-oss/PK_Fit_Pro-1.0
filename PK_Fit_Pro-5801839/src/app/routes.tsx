@@ -40,7 +40,8 @@ import {
     Feedback as AlunoFeedback,
     DiarioTreino,
     IniciarTreino,
-    Evolucao
+    Evolucao,
+    CriarMeuTreino
 } from '../features/aluno';
 
 export function AppRoutes() {
@@ -157,6 +158,11 @@ export function AppRoutes() {
             } />
             <Route path="/aluno/treino" element={
                 <Navigate to="/aluno" replace />
+            } />
+            <Route path="/aluno/criar-treino" element={
+                <ProtectedRoute allowedRoles={['ALUNO']}>
+                    <CriarMeuTreino />
+                </ProtectedRoute>
             } />
             <Route path="/aluno/perfil" element={
                 <ProtectedRoute allowedRoles={['ALUNO']}>

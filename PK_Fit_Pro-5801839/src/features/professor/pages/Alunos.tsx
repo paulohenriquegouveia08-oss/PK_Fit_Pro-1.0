@@ -123,6 +123,22 @@ export default function Alunos() {
                                         <span className={`status-badge ${aluno.has_workout ? 'active' : 'pending'}`}>
                                             {aluno.has_workout ? 'Com treino' : 'Sem treino'}
                                         </span>
+                                        {aluno.is_self_created && (
+                                            <span style={{
+                                                marginLeft: '8px',
+                                                background: 'rgba(56, 189, 248, 0.15)',
+                                                color: '#38bdf8',
+                                                padding: '2px 6px',
+                                                borderRadius: '6px',
+                                                fontWeight: 600,
+                                                fontSize: '11px',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '3px'
+                                            }}>
+                                                Autorevisão
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="user-card-actions">
@@ -276,6 +292,25 @@ export default function Alunos() {
 
                                     <div className="workout-meta">
                                         <small>Criado em: {formatDate(studentWorkout.created_at)}</small>
+                                        {studentWorkout.student_id === studentWorkout.professor_id && (
+                                            <span style={{
+                                                marginLeft: '12px',
+                                                background: 'rgba(56, 189, 248, 0.15)',
+                                                color: '#38bdf8',
+                                                padding: '4px 8px',
+                                                borderRadius: '8px',
+                                                fontWeight: 600,
+                                                fontSize: '12px',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                                </svg>
+                                                Criado pelo próprio Aluno
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             ) : (

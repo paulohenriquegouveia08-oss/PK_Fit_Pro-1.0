@@ -264,7 +264,8 @@ export async function deleteWorkout(workoutId: string): Promise<ApiResponse<void
 export async function updateWorkout(
     workoutId: string,
     days: Omit<WorkoutDay, 'id'>[],
-    studentId?: string
+    studentId?: string,
+    newProfessorId?: string
 ): Promise<ApiResponse<Workout>> {
     try {
         // Delete existing days (cascade will delete exercises)
@@ -308,10 +309,15 @@ export async function updateWorkout(
             }
         }
 
-        // Update the workout timestamp
+        // Update the workout timestamp and optionally the creator/editor
+        const updatePayload: any = { updated_at: new Date().toISOString() };
+        if (newProfessorId) {
+            updatePayload.professor_id = newProfessorId;
+        }
+
         const { data: workout, error: updateError } = await supabase
             .from('workouts')
-            .update({ updated_at: new Date().toISOString() })
+            .update(updatePayload)
             .eq('id', workoutId)
             .select()
             .single();

@@ -31,6 +31,15 @@ interface SessionState {
     setsCompleted: { exerciseId: string; exerciseName: string; reps: number; load: number; setNumber: number; restUsed: number }[];
 }
 
+interface PersistedSession {
+    session: SessionState;
+    screen: Screen;
+    restTargetRef: number;
+    restStartRef: number;
+    repsInput: string;
+    loadInput: string;
+}
+
 const SESSION_KEY = 'pk_active_workout_session';
 
 // ─── Helpers ──────────────────────────────────────────
@@ -126,6 +135,78 @@ export default function IniciarTreino() {
             const hist = await getSessionHistory(sId, 10);
             if (hist.success && hist.data) setHistory(hist.data);
 
+            // ─── Restore Session ───────────────
+            try {
+                const stored = localStorage.getItem(SESSION_KEY);
+                if (stored) {
+                    const parsed = JSON.parse(stored) as PersistedSession;
+                    if (parsed.session && parsed.screen && parsed.session.sessionId) {
+                        setSession(parsed.session);
+                        setScreen(parsed.screen);
+                        restTargetRef.current = parsed.restTargetRef || 0;
+                        restStartRef.current = parsed.restStartRef || 0;
+                        setRepsInput(parsed.repsInput || '');
+                        setLoadInput(parsed.loadInput || '');
+
+                        // Restart timers if in an active state
+                        if (parsed.screen === 'execution' || parsed.screen === 'rest') {
+                            if (elapsedRef.current) clearInterval(elapsedRef.current);
+                            elapsedRef.current = setInterval(() => {
+                                setSession(prev => {
+                                    if (!prev) return prev;
+                                    setElapsed(Math.floor((Date.now() - prev.startedAt) / 1000));
+                                    return prev;
+                                });
+                            }, 1000);
+                        }
+
+                        if (parsed.screen === 'rest') {
+                            const now = Date.now();
+                            const remaining = Math.max(0, Math.ceil((restTargetRef.current - now) / 1000));
+                            setRestRemaining(remaining);
+                            
+                            if (remaining > 0) {
+                                if (restRef.current) clearInterval(restRef.current);
+                                restRef.current = setInterval(() => {
+                                    const rem = Math.max(0, Math.ceil((restTargetRef.current - Date.now()) / 1000));
+                                    setRestRemaining(rem);
+                                    if (rem <= 0) {
+                                        if (restRef.current) clearInterval(restRef.current);
+                                        setSession(prev => {
+                                            if (!prev) return prev;
+                                            const sets = [...prev.setsCompleted];
+                                            if (sets.length > 0) {
+                                                sets[sets.length - 1] = { ...sets[sets.length - 1], restUsed: Math.round((Date.now() - restStartRef.current) / 1000) };
+                                            }
+                                            return { ...prev, setsCompleted: sets };
+                                        });
+                                        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                                        setScreen('execution');
+                                    }
+                                }, 200);
+                            } else {
+                                // Time already elapsed while closed
+                                setSession(prev => {
+                                    if (!prev) return prev;
+                                    const sets = [...prev.setsCompleted];
+                                    if (sets.length > 0) {
+                                        sets[sets.length - 1] = { ...sets[sets.length - 1], restUsed: Math.round((parsed.restTargetRef - parsed.restStartRef) / 1000) };
+                                    }
+                                    return { ...prev, setsCompleted: sets };
+                                });
+                                setScreen('execution');
+                            }
+                        }
+
+                        setIsLoading(false);
+                        return; // Successfully restored
+                    }
+                }
+            } catch (err) {
+                console.error('Error parsing session state:', err);
+                localStorage.removeItem(SESSION_KEY);
+            }
+
             setIsLoading(false);
         };
         init();
@@ -139,6 +220,48 @@ export default function IniciarTreino() {
     useEffect(() => {
         if (message) { const t = setTimeout(() => setMessage(null), 4000); return () => clearTimeout(t); }
     }, [message]);
+
+    // ─── Persistence Sync & Visibility API ────────────
+    useEffect(() => {
+        if (!session) return;
+        const persist: PersistedSession = {
+            session,
+            screen,
+            restTargetRef: restTargetRef.current,
+            restStartRef: restStartRef.current,
+            repsInput,
+            loadInput
+        };
+        localStorage.setItem(SESSION_KEY, JSON.stringify(persist));
+    }, [session, screen, repsInput, loadInput]);
+
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                if (screen === 'rest') {
+                    const remaining = Math.max(0, Math.ceil((restTargetRef.current - Date.now()) / 1000));
+                    setRestRemaining(remaining);
+                    if (remaining <= 0) {
+                        if (restRef.current) clearInterval(restRef.current);
+                        setSession(prev => {
+                            if (!prev) return prev;
+                            const sets = [...prev.setsCompleted];
+                            if (sets.length > 0) {
+                                sets[sets.length - 1] = { ...sets[sets.length - 1], restUsed: Math.round((Date.now() - restStartRef.current) / 1000) };
+                            }
+                            return { ...prev, setsCompleted: sets };
+                        });
+                        setScreen('execution');
+                    }
+                }
+                if (session) {
+                    setElapsed(Math.floor((Date.now() - session.startedAt) / 1000));
+                }
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+        return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }, [screen, session]);
 
     // ─── Elapsed Timer ────────────────────────────────
     const startElapsedTimer = useCallback(() => {
@@ -189,12 +312,6 @@ export default function IniciarTreino() {
                     setsCompleted: []
                 };
                 setSession(newSession);
-                localStorage.setItem(SESSION_KEY, JSON.stringify({
-                    sessionId: res.data.id,
-                    workoutId: workout.id,
-                    dayId: day.id,
-                    startedAt: newSession.startedAt
-                }));
 
                 // Pre-fill suggested values
                 const firstEx = day.exercises[0];

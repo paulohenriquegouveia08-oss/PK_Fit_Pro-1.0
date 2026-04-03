@@ -81,20 +81,24 @@ self.addEventListener('notificationclick', (event) => {
 
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // If the app is already open in a tab, focus it
+            // Find any existing client
             for (const client of clientList) {
-                if (client.url.includes(self.location.origin) && 'focus' in client) {
+                if ('focus' in client) {
                     return client.focus();
                 }
             }
-            // Otherwise open a new window
-            return self.clients.openWindow('/');
+            // If none, open new window
+            if (self.clients.openWindow) {
+                return self.clients.openWindow('/');
+            }
         })
     );
 });
 
 // ─── Background Rest Timer Logic ────────────────────────
+// ─── Background Rest Timer Logic ────────────────────────
 let countdownInterval;
+let stopTimerResolve = null;
 
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'START_REST_TIMER') {
@@ -102,41 +106,68 @@ self.addEventListener('message', (event) => {
         const exerciseName = event.data.exerciseName;
 
         if (countdownInterval) clearInterval(countdownInterval);
+        if (stopTimerResolve) stopTimerResolve();
 
-        countdownInterval = setInterval(() => {
-            const rem = Math.max(0, Math.ceil((targetTime - Date.now()) / 1000));
+        // Use event.waitUntil to prevent the browser from killing the Service Worker!
+        event.waitUntil(
+            new Promise((resolve) => {
+                stopTimerResolve = resolve;
 
-            // Show countdown every 5 seconds
-            if (rem > 0 && rem % 5 === 0) {
-                const mins = Math.floor(rem / 60);
-                const secs = rem % 60;
-                const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                countdownInterval = setInterval(async () => {
+                    const rem = Math.max(0, Math.ceil((targetTime - Date.now()) / 1000));
 
-                self.registration.showNotification('⏱️ Descanso em andamento', {
-                    body: `${timeStr} restantes — ${exerciseName}`,
-                    tag: 'pk-rest-timer', // keep same tag to replace
-                    icon: '/favicon.jpg',
-                    silent: true
-                });
-            }
+                    // Show countdown every 5 seconds
+                    if (rem > 0 && rem % 5 === 0) {
+                        const mins = Math.floor(rem / 60);
+                        const secs = rem % 60;
+                        const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
-            // Show final alarm and clear interval
-            if (rem <= 0) {
-                clearInterval(countdownInterval);
-                self.registration.showNotification('🔔 Descanso Finalizado!', {
-                    body: 'Hora de voltar para a próxima série! 💪',
-                    tag: 'pk-rest-complete',
-                    icon: '/favicon.jpg',
-                    vibrate: [300, 200, 300, 200, 300, 200, 300, 200, 300],
-                    requireInteraction: true,
-                    actions: [
-                        { action: 'open', title: '💪 Voltar ao Treino' }
-                    ]
-                });
-            }
-        }, 1000);
+                        await self.registration.showNotification('⏱️ Descanso em andamento', {
+                            body: `${timeStr} restantes — ${exerciseName}`,
+                            tag: 'pk-rest-timer', // keep same tag to replace
+                            icon: '/favicon.jpg',
+                            silent: true
+                        });
+                    }
+
+                    // Show final alarm and clear interval
+                    if (rem <= 0) {
+                        clearInterval(countdownInterval);
+
+                        // Close the countdown notification before showing the final one
+                        const activeNotes = await self.registration.getNotifications({ tag: 'pk-rest-timer' });
+                        activeNotes.forEach(n => n.close());
+
+                        await self.registration.showNotification('🔔 Descanso Finalizado!', {
+                            body: 'Hora de voltar para a próxima série! 💪',
+                            tag: 'pk-rest-complete',
+                            icon: '/favicon.jpg',
+                            vibrate: [300, 200, 300, 200, 300, 200, 300, 200, 300],
+                            requireInteraction: true,
+                            actions: [
+                                { action: 'open', title: '💪 Voltar ao Treino' }
+                            ]
+                        });
+
+                        // Resolve the promise to allow the Service Worker to sleep again
+                        resolve();
+                    }
+                }, 1000);
+            })
+        );
     }
     else if (event.data && event.data.type === 'STOP_REST_TIMER') {
         if (countdownInterval) clearInterval(countdownInterval);
+
+        // Clear all active tracking notifications and resolve promise
+        event.waitUntil(
+            self.registration.getNotifications().then(notifications => {
+                notifications.forEach(n => n.close());
+                if (stopTimerResolve) {
+                    stopTimerResolve();
+                    stopTimerResolve = null;
+                }
+            })
+        );
     }
 });

@@ -92,3 +92,51 @@ self.addEventListener('notificationclick', (event) => {
         })
     );
 });
+
+// ─── Background Rest Timer Logic ────────────────────────
+let countdownInterval;
+
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'START_REST_TIMER') {
+        const targetTime = event.data.targetTime;
+        const exerciseName = event.data.exerciseName;
+
+        if (countdownInterval) clearInterval(countdownInterval);
+
+        countdownInterval = setInterval(() => {
+            const rem = Math.max(0, Math.ceil((targetTime - Date.now()) / 1000));
+
+            // Show countdown every 5 seconds
+            if (rem > 0 && rem % 5 === 0) {
+                const mins = Math.floor(rem / 60);
+                const secs = rem % 60;
+                const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+                self.registration.showNotification('⏱️ Descanso em andamento', {
+                    body: `${timeStr} restantes — ${exerciseName}`,
+                    tag: 'pk-rest-timer', // keep same tag to replace
+                    icon: '/favicon.jpg',
+                    silent: true
+                });
+            }
+
+            // Show final alarm and clear interval
+            if (rem <= 0) {
+                clearInterval(countdownInterval);
+                self.registration.showNotification('🔔 Descanso Finalizado!', {
+                    body: 'Hora de voltar para a próxima série! 💪',
+                    tag: 'pk-rest-complete',
+                    icon: '/favicon.jpg',
+                    vibrate: [300, 200, 300, 200, 300, 200, 300, 200, 300],
+                    requireInteraction: true,
+                    actions: [
+                        { action: 'open', title: '💪 Voltar ao Treino' }
+                    ]
+                });
+            }
+        }, 1000);
+    }
+    else if (event.data && event.data.type === 'STOP_REST_TIMER') {
+        if (countdownInterval) clearInterval(countdownInterval);
+    }
+});

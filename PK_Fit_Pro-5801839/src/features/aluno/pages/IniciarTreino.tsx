@@ -118,7 +118,6 @@ export default function IniciarTreino() {
     const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
     // Notification refs
-    const notifIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const activeNotifRef = useRef<Notification | null>(null);
 
     // ─── Notification Helpers ─────────────────────────
@@ -128,87 +127,23 @@ export default function IniciarTreino() {
         }
     };
 
-    const showRestCountdownNotif = useCallback((remaining: number, exerciseName: string) => {
-        if (!('Notification' in window) || Notification.permission !== 'granted') return;
-        if (document.visibilityState === 'visible') return; // Only show when app is in background
-
-        try {
-            // Close previous notification
-            if (activeNotifRef.current) {
-                activeNotifRef.current.close();
-            }
-
-            const mins = Math.floor(remaining / 60);
-            const secs = remaining % 60;
-            const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-
-            activeNotifRef.current = new Notification('⏱️ Descanso em andamento', {
-                body: `${timeStr} restantes — ${exerciseName}`,
-                tag: 'pk-rest-timer', // replaces previous notification with same tag
-                icon: '/favicon.jpg',
-                silent: true,
-                requireInteraction: false
-            });
-
-            activeNotifRef.current.onclick = () => {
-                window.focus();
-                activeNotifRef.current?.close();
-            };
-        } catch (_e) { /* notification not supported */ }
-    }, []);
-
-    const showRestCompleteNotif = useCallback(() => {
+    const showRestCountdownNotif = useCallback((targetTime: number, exerciseName: string) => {
         if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
         try {
-            // Close countdown notification
-            if (activeNotifRef.current) {
-                activeNotifRef.current.close();
-            }
-
-            // Strong vibration pattern (like a phone ringing)
-            if (navigator.vibrate) {
-                navigator.vibrate([
-                    300, 200, 300, 200, 300, 200,
-                    300, 200, 300, 200, 300, 200,
-                    300, 200, 300
-                ]);
-            }
-
-            // Try Service Worker notification (supports action buttons)
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.ready.then((registration) => {
-                    registration.showNotification('🔔 Descanso Finalizado!', {
-                        body: 'Hora de voltar para a próxima série! 💪',
-                        tag: 'pk-rest-complete',
-                        icon: '/favicon.jpg',
-                        vibrate: [300, 200, 300, 200, 300, 200, 300, 200, 300],
-                        requireInteraction: true,
-                        actions: [
-                            { action: 'open', title: '💪 Voltar ao Treino' }
-                        ]
-                    } as NotificationOptions);
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'START_REST_TIMER',
+                    targetTime,
+                    exerciseName
                 });
-            } else {
-                // Fallback: regular Notification
-                activeNotifRef.current = new Notification('🔔 Descanso Finalizado!', {
-                    body: 'Hora de voltar para a próxima série! 💪',
-                    tag: 'pk-rest-complete',
-                    icon: '/favicon.jpg',
-                    requireInteraction: true
-                });
-                activeNotifRef.current.onclick = () => {
-                    window.focus();
-                    activeNotifRef.current?.close();
-                };
             }
         } catch (_e) { /* notification not supported */ }
     }, []);
 
     const clearNotifications = useCallback(() => {
-        if (notifIntervalRef.current) {
-            clearInterval(notifIntervalRef.current);
-            notifIntervalRef.current = null;
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'STOP_REST_TIMER' });
         }
         if (activeNotifRef.current) {
             activeNotifRef.current.close();
@@ -592,23 +527,15 @@ export default function IniciarTreino() {
                         }
                         return { ...prev, setsCompleted: sets };
                     });
-                    // Show rest complete notification with strong vibration
-                    showRestCompleteNotif();
-                    // Clear countdown notification interval
+
+                    // Stop service worker background notifications
                     clearNotifications();
                     setScreen('execution');
                 }
             }, 200);
 
-            // Start background notification updates (every 5 seconds)
-            if (notifIntervalRef.current) clearInterval(notifIntervalRef.current);
-            notifIntervalRef.current = setInterval(() => {
-                const rem = Math.max(0, Math.ceil((restTargetRef.current - Date.now()) / 1000));
-                if (rem > 0) {
-                    const nextEx = session.day.exercises[nextExerciseIndex];
-                    showRestCountdownNotif(rem, nextEx?.name || currentExercise.name);
-                }
-            }, 5000);
+            // Delegate background countdown notifications to the Service Worker
+            showRestCountdownNotif(targetEnd, nextEx?.name || currentExercise.name);
         }
         setIsSaving(false);
     };

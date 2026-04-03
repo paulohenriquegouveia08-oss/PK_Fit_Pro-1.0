@@ -73,3 +73,22 @@ self.addEventListener('fetch', (event) => {
             })
     );
 });
+
+// ─── Workout Notification Click Handler ─────────────────
+// When user taps the notification or "Voltar ao Treino" action
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // If the app is already open in a tab, focus it
+            for (const client of clientList) {
+                if (client.url.includes(self.location.origin) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // Otherwise open a new window
+            return self.clients.openWindow('/');
+        })
+    );
+});

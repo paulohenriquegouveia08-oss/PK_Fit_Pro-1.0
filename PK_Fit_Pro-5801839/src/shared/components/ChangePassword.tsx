@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../services/supabase';
+import { APP_VERSION } from '../config/version';
 
 // SVG eye icons
 const EyeOpen = () => (
@@ -93,190 +94,205 @@ export default function ChangePassword({ title = '🔒 Alterar Senha' }: ChangeP
     };
 
     return (
-        <div style={{
-            background: 'var(--card-bg, #fff)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-color)',
-            padding: 'var(--spacing-6)',
-        }}>
-            <h3 style={{
-                fontSize: 'var(--font-size-lg)',
-                fontWeight: 700,
-                marginBottom: 'var(--spacing-4)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--spacing-2)'
+        <>
+            <div style={{
+                background: 'var(--card-bg, #fff)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border-color)',
+                padding: 'var(--spacing-6)',
             }}>
-                Segurança
-            </h3>
+                <h3 style={{
+                    fontSize: 'var(--font-size-lg)',
+                    fontWeight: 700,
+                    marginBottom: 'var(--spacing-4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-2)'
+                }}>
+                    Segurança
+                </h3>
 
-            {message && (
-                <div className={`message-toast ${message.type}`} style={{ marginBottom: 'var(--spacing-4)' }}>
-                    {message.text}
-                </div>
-            )}
+                {message && (
+                    <div className={`message-toast ${message.type}`} style={{ marginBottom: 'var(--spacing-4)' }}>
+                        {message.text}
+                    </div>
+                )}
 
-            {!isOpen ? (
-                <button
-                    onClick={() => { setIsOpen(true); setMessage(null); }}
-                    style={{
-                        width: '100%',
-                        padding: 'var(--spacing-3)',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-color)',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        fontSize: 'var(--font-size-sm)',
-                        color: 'var(--text-primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--spacing-2)',
-                        transition: 'all 0.15s ease',
-                    }}
-                >
-                    {title}
-                </button>
-            ) : (
-                <div style={{ display: 'grid', gap: 'var(--spacing-3)' }}>
-                    {/* Current Password */}
-                    <div>
-                        <label style={{
-                            display: 'block',
-                            fontSize: 'var(--font-size-sm)',
+                {!isOpen ? (
+                    <button
+                        onClick={() => { setIsOpen(true); setMessage(null); }}
+                        style={{
+                            width: '100%',
+                            padding: 'var(--spacing-3)',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border-color)',
+                            background: 'transparent',
+                            cursor: 'pointer',
                             fontWeight: 600,
-                            marginBottom: 'var(--spacing-1)',
-                            color: 'var(--text-secondary)'
-                        }}>
-                            Senha Atual
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showCurrent ? 'text' : 'password'}
-                                className="form-input"
-                                placeholder="Digite sua senha atual"
-                                value={currentPassword}
-                                onChange={(e) => setCurrentPassword(e.target.value)}
-                                style={{ paddingRight: '44px' }}
-                            />
+                            fontSize: 'var(--font-size-sm)',
+                            color: 'var(--text-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'var(--spacing-2)',
+                            transition: 'all 0.15s ease',
+                        }}
+                    >
+                        {title}
+                    </button>
+                ) : (
+                    <div style={{ display: 'grid', gap: 'var(--spacing-3)' }}>
+                        {/* Current Password */}
+                        <div>
+                            <label style={{
+                                display: 'block',
+                                fontSize: 'var(--font-size-sm)',
+                                fontWeight: 600,
+                                marginBottom: 'var(--spacing-1)',
+                                color: 'var(--text-secondary)'
+                            }}>
+                                Senha Atual
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    type={showCurrent ? 'text' : 'password'}
+                                    className="form-input"
+                                    placeholder="Digite sua senha atual"
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    style={{ paddingRight: '44px' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCurrent(!showCurrent)}
+                                    style={{
+                                        position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        color: 'var(--text-secondary)', padding: 4,
+                                        display: 'flex', alignItems: 'center',
+                                    }}
+                                    title={showCurrent ? 'Ocultar senha' : 'Mostrar senha'}
+                                >
+                                    {showCurrent ? <EyeClosed /> : <EyeOpen />}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* New Password */}
+                        <div>
+                            <label style={{
+                                display: 'block',
+                                fontSize: 'var(--font-size-sm)',
+                                fontWeight: 600,
+                                marginBottom: 'var(--spacing-1)',
+                                color: 'var(--text-secondary)'
+                            }}>
+                                Nova Senha
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    type={showNew ? 'text' : 'password'}
+                                    className="form-input"
+                                    placeholder="Mínimo 6 caracteres"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    style={{ paddingRight: '44px' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNew(!showNew)}
+                                    style={{
+                                        position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        color: 'var(--text-secondary)', padding: 4,
+                                        display: 'flex', alignItems: 'center',
+                                    }}
+                                    title={showNew ? 'Ocultar senha' : 'Mostrar senha'}
+                                >
+                                    {showNew ? <EyeClosed /> : <EyeOpen />}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Confirm Password */}
+                        <div>
+                            <label style={{
+                                display: 'block',
+                                fontSize: 'var(--font-size-sm)',
+                                fontWeight: 600,
+                                marginBottom: 'var(--spacing-1)',
+                                color: 'var(--text-secondary)'
+                            }}>
+                                Confirmar Nova Senha
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    type={showConfirm ? 'text' : 'password'}
+                                    className="form-input"
+                                    placeholder="Repita a nova senha"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    style={{ paddingRight: '44px' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirm(!showConfirm)}
+                                    style={{
+                                        position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        color: 'var(--text-secondary)', padding: 4,
+                                        display: 'flex', alignItems: 'center',
+                                    }}
+                                    title={showConfirm ? 'Ocultar senha' : 'Mostrar senha'}
+                                >
+                                    {showConfirm ? <EyeClosed /> : <EyeOpen />}
+                                </button>
+                            </div>
+                            {confirmPassword && confirmPassword !== newPassword && (
+                                <small style={{ color: 'var(--error-500)', fontSize: '12px', marginTop: 4, display: 'block' }}>
+                                    As senhas não coincidem
+                                </small>
+                            )}
+                            {confirmPassword && confirmPassword === newPassword && newPassword.length >= 6 && (
+                                <small style={{ color: 'var(--success-500)', fontSize: '12px', marginTop: 4, display: 'block' }}>
+                                    ✅ Senhas coincidem
+                                </small>
+                            )}
+                        </div>
+
+                        {/* Buttons */}
+                        <div style={{ display: 'flex', gap: 'var(--spacing-2)', marginTop: 'var(--spacing-2)' }}>
                             <button
-                                type="button"
-                                onClick={() => setShowCurrent(!showCurrent)}
-                                style={{
-                                    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                                    background: 'none', border: 'none', cursor: 'pointer',
-                                    color: 'var(--text-secondary)', padding: 4,
-                                    display: 'flex', alignItems: 'center',
-                                }}
-                                title={showCurrent ? 'Ocultar senha' : 'Mostrar senha'}
+                                className="btn-cancel"
+                                onClick={() => { setIsOpen(false); resetForm(); }}
+                                style={{ flex: 1 }}
                             >
-                                {showCurrent ? <EyeClosed /> : <EyeOpen />}
+                                Cancelar
+                            </button>
+                            <button
+                                className="btn-add"
+                                onClick={handleSubmit}
+                                disabled={isSaving || !currentPassword || !newPassword || !confirmPassword}
+                                style={{ flex: 1 }}
+                            >
+                                {isSaving ? 'Salvando...' : 'Alterar Senha'}
                             </button>
                         </div>
                     </div>
+                )}
+            </div>
 
-                    {/* New Password */}
-                    <div>
-                        <label style={{
-                            display: 'block',
-                            fontSize: 'var(--font-size-sm)',
-                            fontWeight: 600,
-                            marginBottom: 'var(--spacing-1)',
-                            color: 'var(--text-secondary)'
-                        }}>
-                            Nova Senha
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showNew ? 'text' : 'password'}
-                                className="form-input"
-                                placeholder="Mínimo 6 caracteres"
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                style={{ paddingRight: '44px' }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowNew(!showNew)}
-                                style={{
-                                    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                                    background: 'none', border: 'none', cursor: 'pointer',
-                                    color: 'var(--text-secondary)', padding: 4,
-                                    display: 'flex', alignItems: 'center',
-                                }}
-                                title={showNew ? 'Ocultar senha' : 'Mostrar senha'}
-                            >
-                                {showNew ? <EyeClosed /> : <EyeOpen />}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Confirm Password */}
-                    <div>
-                        <label style={{
-                            display: 'block',
-                            fontSize: 'var(--font-size-sm)',
-                            fontWeight: 600,
-                            marginBottom: 'var(--spacing-1)',
-                            color: 'var(--text-secondary)'
-                        }}>
-                            Confirmar Nova Senha
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showConfirm ? 'text' : 'password'}
-                                className="form-input"
-                                placeholder="Repita a nova senha"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                style={{ paddingRight: '44px' }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowConfirm(!showConfirm)}
-                                style={{
-                                    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                                    background: 'none', border: 'none', cursor: 'pointer',
-                                    color: 'var(--text-secondary)', padding: 4,
-                                    display: 'flex', alignItems: 'center',
-                                }}
-                                title={showConfirm ? 'Ocultar senha' : 'Mostrar senha'}
-                            >
-                                {showConfirm ? <EyeClosed /> : <EyeOpen />}
-                            </button>
-                        </div>
-                        {confirmPassword && confirmPassword !== newPassword && (
-                            <small style={{ color: 'var(--error-500)', fontSize: '12px', marginTop: 4, display: 'block' }}>
-                                As senhas não coincidem
-                            </small>
-                        )}
-                        {confirmPassword && confirmPassword === newPassword && newPassword.length >= 6 && (
-                            <small style={{ color: 'var(--success-500)', fontSize: '12px', marginTop: 4, display: 'block' }}>
-                                ✅ Senhas coincidem
-                            </small>
-                        )}
-                    </div>
-
-                    {/* Buttons */}
-                    <div style={{ display: 'flex', gap: 'var(--spacing-2)', marginTop: 'var(--spacing-2)' }}>
-                        <button
-                            className="btn-cancel"
-                            onClick={() => { setIsOpen(false); resetForm(); }}
-                            style={{ flex: 1 }}
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            className="btn-add"
-                            onClick={handleSubmit}
-                            disabled={isSaving || !currentPassword || !newPassword || !confirmPassword}
-                            style={{ flex: 1 }}
-                        >
-                            {isSaving ? 'Salvando...' : 'Alterar Senha'}
-                        </button>
-                    </div>
-                </div>
-            )}
-        </div>
+            {/* Version indicator */}
+            <div style={{
+                textAlign: 'center',
+                marginTop: 'var(--spacing-4)',
+                padding: 'var(--spacing-2) 0',
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                opacity: 0.6,
+                letterSpacing: '0.5px'
+            }}>
+                PK Fit Pro — {APP_VERSION}
+            </div>
+        </>
     );
 }

@@ -111,6 +111,12 @@ export default function IniciarTreino() {
     const [isReordering, setIsReordering] = useState(false);
     const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
+    // Emergency persistence ref (always has latest state for pagehide/beforeunload)
+    const persistRef = useRef<PersistedSession | null>(null);
+
+    // Screen Wake Lock to keep device awake during workout
+    const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
     // ─── Init ─────────────────────────────────────────
     useEffect(() => {
         const init = async () => {
@@ -164,7 +170,7 @@ export default function IniciarTreino() {
                             const now = Date.now();
                             const remaining = Math.max(0, Math.ceil((restTargetRef.current - now) / 1000));
                             setRestRemaining(remaining);
-                            
+
                             if (remaining > 0) {
                                 if (restRef.current) clearInterval(restRef.current);
                                 restRef.current = setInterval(() => {
@@ -222,8 +228,9 @@ export default function IniciarTreino() {
     }, [message]);
 
     // ─── Persistence Sync & Visibility API ────────────
+    // Keep persistRef always up-to-date for emergency saves
     useEffect(() => {
-        if (!session) return;
+        if (!session) { persistRef.current = null; return; }
         const persist: PersistedSession = {
             session,
             screen,
@@ -232,12 +239,41 @@ export default function IniciarTreino() {
             repsInput,
             loadInput
         };
+        persistRef.current = persist;
         localStorage.setItem(SESSION_KEY, JSON.stringify(persist));
     }, [session, screen, repsInput, loadInput]);
 
+    // Emergency save on pagehide / beforeunload / freeze
+    // These events fire right BEFORE the OS kills the tab on mobile
     useEffect(() => {
-        const handleVisibility = () => {
+        const emergencySave = () => {
+            if (persistRef.current) {
+                // Always update refs to latest values
+                persistRef.current.restTargetRef = restTargetRef.current;
+                persistRef.current.restStartRef = restStartRef.current;
+                try {
+                    localStorage.setItem(SESSION_KEY, JSON.stringify(persistRef.current));
+                } catch (_e) { /* localStorage full, nothing we can do */ }
+            }
+        };
+        // pagehide is the most reliable on mobile (fires even when tab is killed)
+        window.addEventListener('pagehide', emergencySave);
+        window.addEventListener('beforeunload', emergencySave);
+        // freeze is for Page Lifecycle API (Chrome mobile)
+        document.addEventListener('freeze', emergencySave);
+
+        return () => {
+            window.removeEventListener('pagehide', emergencySave);
+            window.removeEventListener('beforeunload', emergencySave);
+            document.removeEventListener('freeze', emergencySave);
+        };
+    }, []); // empty deps — uses refs internally
+
+    // Visibility change: sync timers AND re-acquire wake lock
+    useEffect(() => {
+        const handleVisibility = async () => {
             if (document.visibilityState === 'visible') {
+                // Recalculate rest timer (catches up after background sleep)
                 if (screen === 'rest') {
                     const remaining = Math.max(0, Math.ceil((restTargetRef.current - Date.now()) / 1000));
                     setRestRemaining(remaining);
@@ -254,14 +290,47 @@ export default function IniciarTreino() {
                         setScreen('execution');
                     }
                 }
+                // Recalculate elapsed timer
                 if (session) {
                     setElapsed(Math.floor((Date.now() - session.startedAt) / 1000));
+                }
+                // Re-acquire Screen Wake Lock (it's released when page becomes hidden)
+                if ('wakeLock' in navigator && (screen === 'execution' || screen === 'rest')) {
+                    try {
+                        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+                    } catch (_e) { /* device doesn't support or user denied */ }
                 }
             }
         };
         document.addEventListener('visibilitychange', handleVisibility);
         return () => document.removeEventListener('visibilitychange', handleVisibility);
     }, [screen, session]);
+
+    // Screen Wake Lock: keep screen awake during active workout
+    useEffect(() => {
+        if (screen !== 'execution' && screen !== 'rest') {
+            // Release wake lock when not in active workout
+            if (wakeLockRef.current) {
+                wakeLockRef.current.release().catch(() => { });
+                wakeLockRef.current = null;
+            }
+            return;
+        }
+        const acquireWakeLock = async () => {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+                } catch (_e) { /* not supported or denied */ }
+            }
+        };
+        acquireWakeLock();
+        return () => {
+            if (wakeLockRef.current) {
+                wakeLockRef.current.release().catch(() => { });
+                wakeLockRef.current = null;
+            }
+        };
+    }, [screen]);
 
     // ─── Elapsed Timer ────────────────────────────────
     const startElapsedTimer = useCallback(() => {

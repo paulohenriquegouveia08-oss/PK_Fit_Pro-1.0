@@ -120,6 +120,8 @@ export default function IniciarTreino() {
 
     // Pending push ID ref (to cancel if user skips rest)
     const pendingPushIdRef = useRef<string | null>(null);
+    // Direct API call timeout (fast-path, bypasses cron delay)
+    const pushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // ─── Notification Helpers ─────────────────────────
     const clearNotifications = useCallback(() => {
@@ -130,6 +132,11 @@ export default function IniciarTreino() {
         if (pendingPushIdRef.current) {
             cancelPendingPush(pendingPushIdRef.current);
             pendingPushIdRef.current = null;
+        }
+        // Cancel direct API timeout
+        if (pushTimeoutRef.current) {
+            clearTimeout(pushTimeoutRef.current);
+            pushTimeoutRef.current = null;
         }
         // Stop any ongoing vibration
         if (navigator.vibrate) navigator.vibrate(0);
@@ -521,6 +528,12 @@ export default function IniciarTreino() {
             schedulePushNotification(restSecs).then(id => {
                 if (id) pendingPushIdRef.current = id;
             });
+
+            // Fast-path: direct API call after rest ends (bypasses cron delay)
+            if (pushTimeoutRef.current) clearTimeout(pushTimeoutRef.current);
+            pushTimeoutRef.current = setTimeout(() => {
+                fetch('/api/send-push').catch(() => { });
+            }, restSecs * 1000);
         }
         setIsSaving(false);
     };
@@ -541,6 +554,13 @@ export default function IniciarTreino() {
             schedulePushNotification(newRemaining).then(id => {
                 if (id) pendingPushIdRef.current = id;
             });
+        }
+        // Re-schedule the fast-path direct API call
+        if (pushTimeoutRef.current) clearTimeout(pushTimeoutRef.current);
+        if (newRemaining > 0) {
+            pushTimeoutRef.current = setTimeout(() => {
+                fetch('/api/send-push').catch(() => { });
+            }, newRemaining * 1000);
         }
     };
 

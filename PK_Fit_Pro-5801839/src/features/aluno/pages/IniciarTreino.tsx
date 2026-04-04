@@ -531,6 +531,17 @@ export default function IniciarTreino() {
         restTargetRef.current = newTarget;
         const newRemaining = Math.max(0, Math.ceil((newTarget - Date.now()) / 1000));
         setRestRemaining(newRemaining);
+
+        // Re-schedule the server push with the new remaining time
+        if (pendingPushIdRef.current) {
+            cancelPendingPush(pendingPushIdRef.current);
+            pendingPushIdRef.current = null;
+        }
+        if (newRemaining > 0) {
+            schedulePushNotification(newRemaining).then(id => {
+                if (id) pendingPushIdRef.current = id;
+            });
+        }
     };
 
     const skipRest = () => {

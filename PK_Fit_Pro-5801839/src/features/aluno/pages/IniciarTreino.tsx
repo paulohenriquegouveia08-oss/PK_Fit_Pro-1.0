@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { subscribeToPush, schedulePushNotification, cancelPendingPush } from '../../../shared/services/pushSubscription';
 import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentId } from '../../../shared/services/student.service';
 import { getStudentWorkout, type Workout, type WorkoutDay, type Exercise } from '../../../shared/services/workout.service';
@@ -117,37 +118,18 @@ export default function IniciarTreino() {
     // Screen Wake Lock to keep device awake during workout
     const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
-    // Notification refs
-    const activeNotifRef = useRef<Notification | null>(null);
+    // Pending push ID ref (to cancel if user skips rest)
+    const pendingPushIdRef = useRef<string | null>(null);
 
     // ─── Notification Helpers ─────────────────────────
-    const requestNotifPermission = async () => {
-        if ('Notification' in window && Notification.permission === 'default') {
-            await Notification.requestPermission();
-        }
-    };
-
-    const showRestCountdownNotif = useCallback((targetTime: number, exerciseName: string) => {
-        if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
-        try {
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                    type: 'START_REST_TIMER',
-                    targetTime,
-                    exerciseName
-                });
-            }
-        } catch (_e) { /* notification not supported */ }
-    }, []);
-
     const clearNotifications = useCallback(() => {
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({ type: 'STOP_REST_TIMER' });
+            navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_NOTIFICATIONS' });
         }
-        if (activeNotifRef.current) {
-            activeNotifRef.current.close();
-            activeNotifRef.current = null;
+        // Cancel pending server push if exists
+        if (pendingPushIdRef.current) {
+            cancelPendingPush(pendingPushIdRef.current);
+            pendingPushIdRef.current = null;
         }
         // Stop any ongoing vibration
         if (navigator.vibrate) navigator.vibrate(0);
@@ -430,8 +412,8 @@ export default function IniciarTreino() {
                 setScreen('execution');
                 startElapsedTimer();
 
-                // Request notification permission for rest timer alerts
-                requestNotifPermission();
+                // Subscribe to Web Push for rest timer alerts
+                subscribeToPush();
             }
         }, 1000);
     };
@@ -534,8 +516,11 @@ export default function IniciarTreino() {
                 }
             }, 200);
 
-            // Delegate background countdown notifications to the Service Worker
-            showRestCountdownNotif(targetEnd, nextEx?.name || currentExercise.name);
+            // Schedule a server-side push notification for when rest ends
+            const restSecs = currentExercise.rest || 60;
+            schedulePushNotification(restSecs).then(id => {
+                if (id) pendingPushIdRef.current = id;
+            });
         }
         setIsSaving(false);
     };

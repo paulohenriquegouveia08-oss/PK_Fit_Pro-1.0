@@ -166,6 +166,21 @@ export default function IniciarTreino() {
             const hist = await getSessionHistory(sId, 10);
             if (hist.success && hist.data) setHistory(hist.data);
 
+            // Subscribe to push notifications early (give SW time to activate)
+            setTimeout(async () => {
+                const result = await subscribeToPush();
+                if (!result.ok) {
+                    console.warn(`Push subscribe attempt 1 failed: ${result.step} — ${result.error}`);
+                    // Retry after 10 seconds
+                    setTimeout(async () => {
+                        const retry = await subscribeToPush();
+                        if (!retry.ok) {
+                            console.warn(`Push subscribe attempt 2 failed: ${retry.step} — ${retry.error}`);
+                        }
+                    }, 10000);
+                }
+            }, 3000);
+
             // ─── Restore Session ───────────────
             try {
                 const stored = localStorage.getItem(SESSION_KEY);
@@ -418,16 +433,6 @@ export default function IniciarTreino() {
 
                 setScreen('execution');
                 startElapsedTimer();
-
-                // Subscribe to Web Push for rest timer alerts
-                subscribeToPush().then(result => {
-                    // TEMP DIAGNOSTIC: use alert() so it's visible on mobile
-                    if (!result.ok) {
-                        alert(`Push falhou!\nEtapa: ${result.step}\nErro: ${result.error}`);
-                    } else {
-                        console.log('Push subscription OK');
-                    }
-                });
             }
         }, 1000);
     };

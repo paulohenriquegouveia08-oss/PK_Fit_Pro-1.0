@@ -420,7 +420,14 @@ export default function IniciarTreino() {
                 startElapsedTimer();
 
                 // Subscribe to Web Push for rest timer alerts
-                subscribeToPush();
+                subscribeToPush().then(result => {
+                    if (!result.ok) {
+                        console.warn(`Push subscription failed at step "${result.step}": ${result.error}`);
+                        // Show visual alert on mobile (since console isn't accessible)
+                        setMessage({ type: 'error', text: `⚠️ Push: falhou em "${result.step}" — ${result.error}` });
+                        setTimeout(() => setMessage(null), 8000);
+                    }
+                });
             }
         }, 1000);
     };

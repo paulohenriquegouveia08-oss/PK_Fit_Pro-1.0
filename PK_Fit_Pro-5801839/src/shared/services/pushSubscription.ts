@@ -17,70 +17,86 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 /**
  * Subscribe the current browser/device to receive Web Push notifications.
  * Stores the subscription in Supabase for later use.
+ * Returns { ok: boolean, step: string, error?: string } for diagnostics.
  */
-export async function subscribeToPush(): Promise<boolean> {
+export async function subscribeToPush(): Promise<{ ok: boolean; step: string; error?: string }> {
     try {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            console.warn('Push notifications not supported');
-            return false;
+        // Step 1: Check browser support
+        if (!('serviceWorker' in navigator)) {
+            return { ok: false, step: 'support', error: 'Service Worker not supported' };
         }
-
+        if (!('PushManager' in window)) {
+            return { ok: false, step: 'support', error: 'PushManager not supported' };
+        }
         if (!VAPID_PUBLIC_KEY) {
-            console.warn('VAPID public key not configured');
-            return false;
+            return { ok: false, step: 'config', error: 'VAPID key not configured' };
         }
 
-        // Make sure notification permission is granted
+        // Step 2: Check/request notification permission
         if (Notification.permission === 'default') {
             const result = await Notification.requestPermission();
-            if (result !== 'granted') return false;
+            if (result !== 'granted') {
+                return { ok: false, step: 'permission', error: `Permission ${result}` };
+            }
         } else if (Notification.permission !== 'granted') {
-            return false;
+            return { ok: false, step: 'permission', error: `Permission is ${Notification.permission}` };
         }
 
+        // Step 3: Wait for Service Worker to be ready
         const registration = await navigator.serviceWorker.ready;
+        if (!registration) {
+            return { ok: false, step: 'sw_ready', error: 'Service Worker registration is null' };
+        }
 
-        // Check if already subscribed
+        // Step 4: Get or create push subscription
         let subscription = await registration.pushManager.getSubscription();
 
         if (!subscription) {
-            subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource
-            });
+            try {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource
+                });
+            } catch (subErr: any) {
+                return { ok: false, step: 'push_subscribe', error: subErr?.message || String(subErr) };
+            }
         }
 
-        // Extract keys
+        if (!subscription) {
+            return { ok: false, step: 'push_subscribe', error: 'Subscription is null after subscribe' };
+        }
+
+        // Step 5: Extract keys from subscription
         const subJSON = subscription.toJSON();
-        const endpoint = subJSON.endpoint!;
-        const p256dh = subJSON.keys!.p256dh!;
-        const auth = subJSON.keys!.auth!;
+        if (!subJSON.endpoint || !subJSON.keys?.p256dh || !subJSON.keys?.auth) {
+            return { ok: false, step: 'extract_keys', error: `Missing keys: endpoint=${!!subJSON.endpoint} p256dh=${!!subJSON.keys?.p256dh} auth=${!!subJSON.keys?.auth}` };
+        }
 
-        // Get current user
+        // Step 6: Get current authenticated user
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return false;
+        if (!user) {
+            return { ok: false, step: 'auth', error: 'No authenticated user found' };
+        }
 
-        // Upsert to Supabase (idempotent)
+        // Step 7: Save subscription to Supabase
         const { error } = await supabase
             .from('push_subscriptions')
             .upsert({
                 user_id: user.id,
-                endpoint,
-                p256dh,
-                auth
+                endpoint: subJSON.endpoint,
+                p256dh: subJSON.keys.p256dh,
+                auth: subJSON.keys.auth
             }, {
                 onConflict: 'user_id,endpoint'
             });
 
         if (error) {
-            console.error('Failed to save push subscription:', error);
-            return false;
+            return { ok: false, step: 'db_save', error: `${error.code}: ${error.message}` };
         }
 
-        return true;
-    } catch (err) {
-        console.error('Push subscription failed:', err);
-        return false;
+        return { ok: true, step: 'complete' };
+    } catch (err: any) {
+        return { ok: false, step: 'unknown', error: err?.message || String(err) };
     }
 }
 

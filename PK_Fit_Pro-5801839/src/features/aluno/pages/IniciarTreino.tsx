@@ -421,11 +421,11 @@ export default function IniciarTreino() {
 
                 // Subscribe to Web Push for rest timer alerts
                 subscribeToPush().then(result => {
+                    // TEMP DIAGNOSTIC: use alert() so it's visible on mobile
                     if (!result.ok) {
-                        console.warn(`Push subscription failed at step "${result.step}": ${result.error}`);
-                        // Show visual alert on mobile (since console isn't accessible)
-                        setMessage({ type: 'error', text: `⚠️ Push: falhou em "${result.step}" — ${result.error}` });
-                        setTimeout(() => setMessage(null), 8000);
+                        alert(`Push falhou!\nEtapa: ${result.step}\nErro: ${result.error}`);
+                    } else {
+                        console.log('Push subscription OK');
                     }
                 });
             }

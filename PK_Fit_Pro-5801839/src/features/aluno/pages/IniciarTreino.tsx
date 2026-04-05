@@ -309,10 +309,24 @@ export default function IniciarTreino() {
         };
     }, []); // empty deps — uses refs internally
 
-    // Visibility change: sync timers AND re-acquire wake lock
+    // Backup: poll the push API every 15s while resting (ensures delivery even if pg_cron fails)
+    useEffect(() => {
+        if (screen !== 'rest') return;
+
+        const pushPoll = setInterval(() => {
+            fetch('/api/send-push').catch(() => { });
+        }, 15000);
+
+        return () => clearInterval(pushPoll);
+    }, [screen]);
+
+    // Visibility change: sync timers AND re-acquire wake lock AND trigger push
     useEffect(() => {
         const handleVisibility = async () => {
             if (document.visibilityState === 'visible') {
+                // Trigger push API immediately on return (catches missed notifications)
+                fetch('/api/send-push').catch(() => { });
+
                 // Dismiss notifications when user returns to app
                 clearNotifications();
                 // Recalculate rest timer (catches up after background sleep)

@@ -1,27 +1,27 @@
 -- =============================================================
--- pg_cron + pg_net: Agendador automático de Web Push
--- Execute no Supabase SQL Editor DEPOIS da migration das tabelas
+-- pg_cron: Atualizado para usar /api/cron-push (sempre retorna 200)
+-- Execute no Supabase SQL Editor
 -- =============================================================
 
--- 1. Habilitar as extensões necessárias
+-- 1. Remove o job antigo (se existir)
+SELECT cron.unschedule ( 'send-rest-push-notifications' );
+
+-- 2. Habilitar extensões
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- 2. Criar o cron job que chama a Netlify Function a cada 30 segundos
--- IMPORTANTE: Substitua 'SEU_SITE.netlify.app' pela URL real do seu site Netlify
+-- 3. Criar novo job com endpoint que sempre retorna 200
 SELECT cron.schedule(
-    'send-rest-push-notifications',  -- nome do job
-    '30 seconds',                     -- intervalo
+    'send-rest-push-notifications',
+    '30 seconds',
     $$
     SELECT net.http_get(
-        url := 'https://pkfitpro.netlify.app/api/send-push'
+        url := 'https://pkfitpro.netlify.app/api/cron-push'
     );
 
 $$ );
 
--- Para verificar se o job foi criado:
+-- Verificar:
 -- SELECT * FROM cron.job;
-
--- Para remover o job (caso precise reverter):
--- SELECT cron.unschedule('send-rest-push-notifications');
+-- SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 5;

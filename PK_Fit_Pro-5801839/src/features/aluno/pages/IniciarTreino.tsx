@@ -327,8 +327,8 @@ export default function IniciarTreino() {
                 // Trigger push API immediately on return (catches missed notifications)
                 fetch('/api/send-push').catch(() => { });
 
-                // Dismiss notifications when user returns to app
-                clearNotifications();
+                // Don't auto-clear notifications here — let the user see them
+                // They will be cleared when rest finishes or user skips rest
                 // Recalculate rest timer (catches up after background sleep)
                 if (screen === 'rest') {
                     const remaining = Math.max(0, Math.ceil((restTargetRef.current - Date.now()) / 1000));

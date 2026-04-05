@@ -238,13 +238,14 @@ export default function MeuTreino() {
                                 alignItems: 'center',
                                 gap: '8px',
                                 padding: '10px 20px',
-                                background: 'rgba(255,255,255,0.05)',
-                                color: 'var(--text-primary)',
-                                border: '1px solid var(--border-color)',
+                                background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                                color: '#fff',
+                                border: 'none',
                                 borderRadius: '12px',
                                 fontWeight: 600,
                                 fontSize: '13px',
                                 cursor: 'pointer',
+                                boxShadow: '0 2px 8px rgba(249, 115, 22, 0.3)',
                                 transition: 'all 0.2s',
                                 whiteSpace: 'nowrap'
                             }}

@@ -30,6 +30,17 @@ export interface AnalysisInsight {
     text: string;
 }
 
+export interface StreakInfo {
+    currentStreak: number;
+    bestStreak: number;
+}
+
+export interface PerformanceComparison {
+    volumeEvolution: number; // %
+    loadEvolution: number; // %
+    freqEvolution: number; // %
+}
+
 // ============ Constants ============
 
 export const MUSCLE_GROUPS = [
@@ -416,4 +427,96 @@ export function generateInsights(
     }
 
     return insights;
+}
+
+/**
+ * Calculate Current and Best Streaks
+ */
+export function getStreaks(frequencyData: FrequencyDay[]): StreakInfo {
+    let currentStreak = 0;
+    let bestStreak = 0;
+    let tempStreak = 0;
+
+    // Iterate backwards from yesterday/today
+    for (let i = frequencyData.length - 1; i >= 0; i--) {
+        if (frequencyData[i].trained) {
+            tempStreak++;
+            if (tempStreak > bestStreak) bestStreak = tempStreak;
+        } else {
+            // Se hoje não treinou ainda, permite manter a streak de ontem.
+            if (i === frequencyData.length - 1) {
+                // do nothing, skip today
+            } else {
+                tempStreak = 0;
+            }
+        }
+    }
+
+    // Now recalculate current streak properly starting from end
+    for (let i = frequencyData.length - 1; i >= 0; i--) {
+        if (frequencyData[i].trained) {
+            currentStreak++;
+        } else if (i === frequencyData.length - 1) {
+            // Ignore if skipped today only
+        } else {
+            break;
+        }
+    }
+
+    // Pass one more time for absolute best streak from start to finish
+    tempStreak = 0;
+    for (let i = 0; i < frequencyData.length; i++) {
+        if (frequencyData[i].trained) {
+            tempStreak++;
+            if (tempStreak > bestStreak) bestStreak = tempStreak;
+        } else {
+            tempStreak = 0;
+        }
+    }
+
+    return { currentStreak, bestStreak };
+}
+
+/**
+ * Compare two halves of the period to yield % evolution
+ */
+export function getPerformanceComparison(
+    loadData: LoadEvolutionPoint[],
+    frequencyData: FrequencyDay[]
+): PerformanceComparison {
+    let volumeEvolution = 0;
+    let loadEvolution = 0;
+    let freqEvolution = 0;
+
+    if (loadData.length >= 2) {
+        const mid = Math.floor(loadData.length / 2);
+        const firstHalf = loadData.slice(0, mid);
+        const secondHalf = loadData.slice(mid);
+
+        const v1 = firstHalf.reduce((s, p) => s + p.total_volume, 0) / (firstHalf.length || 1);
+        const v2 = secondHalf.reduce((s, p) => s + p.total_volume, 0) / (secondHalf.length || 1);
+        if (v1 > 0) volumeEvolution = Math.round(((v2 - v1) / v1) * 100);
+
+        const l1 = Math.max(...firstHalf.map(p => p.max_load), 0);
+        const l2 = Math.max(...secondHalf.map(p => p.max_load), 0);
+        if (l1 > 0) loadEvolution = Math.round(((l2 - l1) / l1) * 100);
+    }
+
+    if (frequencyData.length >= 2) {
+        const mid = Math.floor(frequencyData.length / 2);
+        const firstHalf = frequencyData.slice(0, mid);
+        const secondHalf = frequencyData.slice(mid);
+
+        const f1 = firstHalf.filter(d => d.trained).length;
+        const f2 = secondHalf.filter(d => d.trained).length;
+        
+        // Se ambos forem zero, a evolução é 0. Se f1 for 0, mas f2 for >0, consideramos +100%
+        if (f1 > 0) {
+            freqEvolution = Math.round(((f2 - f1) / f1) * 100);
+        } else if (f2 > 0) {
+            freqEvolution = 100;
+        }
+    }
+
+    return { volumeEvolution, loadEvolution, freqEvolution };
 }

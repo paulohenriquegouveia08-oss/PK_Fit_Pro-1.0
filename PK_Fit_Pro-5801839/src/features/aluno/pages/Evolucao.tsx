@@ -1,17 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler
-} from 'chart.js';
-import { Line, Bar } from 'react-chartjs-2';
+    AreaChart,
+    Area,
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip as RechartsTooltip,
+    ResponsiveContainer,
+    ReferenceLine,
+    Dot
+} from 'recharts';
 import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentId } from '../../../shared/services/student.service';
 import {
@@ -20,377 +20,488 @@ import {
     getTrainingFrequency,
     getStudentExercises,
     generateInsights,
+    getStreaks,
+    getPerformanceComparison,
     PERIOD_OPTIONS,
     type LoadEvolutionPoint,
     type RepsEvolutionPoint,
     type FrequencyDay,
-    type AnalysisInsight
+    type AnalysisInsight,
+    type StreakInfo,
+    type PerformanceComparison
 } from '../../../shared/services/evolution.service';
 import { alunoMenuItems as menuItems } from '../../../shared/config/alunoMenu';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../styles/aluno.css';
 
-// Register Chart.js components
-ChartJS.register(
-    CategoryScale, LinearScale, PointElement, LineElement,
-    BarElement, Title, Tooltip, Legend, Filler
-);
+// Chart.js removed in favor of Recharts
 
 // ─── Chart Colors ───
 const COLORS = {
     primary: 'rgb(99, 102, 241)',
-    primaryAlpha: 'rgba(99, 102, 241, 0.15)',
-    secondary: 'rgb(245, 158, 11)',
-    secondaryAlpha: 'rgba(245, 158, 11, 0.15)',
+    primaryAlpha: 'rgba(99, 102, 241, 0.2)',
     success: 'rgb(34, 197, 94)',
-    successAlpha: 'rgba(34, 197, 94, 0.15)',
+    successAlpha: 'rgba(34, 197, 94, 0.2)',
     danger: 'rgb(239, 68, 68)',
-    neutral: 'rgb(148, 163, 184)',
-    bg: 'rgb(241, 245, 249)',
+    dangerAlpha: 'rgba(239, 68, 68, 0.2)',
+    neutral: '#94a3b8',
+    bgSecondary: 'var(--background-secondary)',
+    border: 'var(--border-color)',
 };
-
-const chartPalette = [
-    'rgb(99, 102, 241)', 'rgb(245, 158, 11)', 'rgb(34, 197, 94)',
-    'rgb(239, 68, 68)', 'rgb(168, 85, 247)', 'rgb(14, 165, 233)',
-    'rgb(236, 72, 153)', 'rgb(20, 184, 166)'
-];
 
 // ─── Helpers ───
 const fmtDate = (d: string) => {
     const [, m, day] = d.split('-');
     return `${day}/${m}`;
 };
-const fmtDateFull = (d: string) => {
-    const [y, m, day] = d.split('-');
-    return `${day}/${m}/${y}`;
-};
-
-// ─── Shared chart options ───
-const baseLineOpts = (yLabel: string) => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { mode: 'index' as const, intersect: false },
-    plugins: {
-        legend: { position: 'top' as const, labels: { usePointStyle: true, padding: 12, font: { size: 11 } } },
-        tooltip: {
-            backgroundColor: 'rgba(15, 23, 42, 0.9)',
-            titleFont: { size: 12 },
-            bodyFont: { size: 11 },
-            padding: 10,
-            cornerRadius: 8,
-            displayColors: true
-        }
-    },
-    scales: {
-        x: {
-            grid: { display: false },
-            ticks: { font: { size: 10 }, color: '#94a3b8', maxRotation: 45 }
-        },
-        y: {
-            beginAtZero: true,
-            title: { display: true, text: yLabel, font: { size: 11 }, color: '#64748b' },
-            grid: { color: 'rgba(148, 163, 184, 0.1)' },
-            ticks: { font: { size: 10 }, color: '#94a3b8' }
-        }
-    }
-});
 
 export default function Evolucao() {
     const [studentId, setStudentId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // --- Module 1: Load Evolution ---
-    const [loadPeriod, setLoadPeriod] = useState(30);
-    const [loadMode, setLoadMode] = useState<'volume' | 'max'>('volume');
+    // Global filters
+    const [globalPeriod, setGlobalPeriod] = useState(30);
+
+    // --- State Data ---
     const [loadData, setLoadData] = useState<LoadEvolutionPoint[]>([]);
-    const [loadLoading, setLoadLoading] = useState(false);
-    const [selectedExerciseLoad, setSelectedExerciseLoad] = useState<string>('');
-
-    // --- Module 2: Reps Evolution ---
-    const [repsPeriod, setRepsPeriod] = useState(30);
-    const [repsExercise, setRepsExercise] = useState<string>('');
-    const [repsData, setRepsData] = useState<RepsEvolutionPoint[]>([]);
-    const [repsLoading, setRepsLoading] = useState(false);
-
-    // --- Module 3: Frequency ---
-    const [freqPeriod, setFreqPeriod] = useState(30);
-    const [freqMode, setFreqMode] = useState<'monthly' | 'weekly'>('monthly');
     const [freqData, setFreqData] = useState<FrequencyDay[]>([]);
-    const [freqLoading, setFreqLoading] = useState(false);
-
-    // --- Exercises list ---
     const [exercises, setExercises] = useState<string[]>([]);
 
-    // --- Insights ---
-    const [insights, setInsights] = useState<AnalysisInsight[]>([]);
+    // Exercise specific evolution
+    const [repsDataMap, setRepsDataMap] = useState<Record<string, RepsEvolutionPoint[]>>({});
+    const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
+    const [selectedChartExercise, setSelectedChartExercise] = useState<string | null>(null);
+    const [chartTab, setChartTab] = useState<'volume' | 'carga' | 'reps'>('volume');
 
-    // --- Active section ---
-    const [activeSection, setActiveSection] = useState<1 | 2 | 3>(1);
+    // Set first exercise as default when exercises load
+    useEffect(() => {
+        if (exercises.length > 0 && !selectedChartExercise) {
+            setSelectedChartExercise(exercises[0]);
+        }
+    }, [exercises, selectedChartExercise]);
+
+    // Derived stats
+    const [insights, setInsights] = useState<AnalysisInsight[]>([]);
+    const [streak, setStreak] = useState<StreakInfo>({ currentStreak: 0, bestStreak: 0 });
+    const [performance, setPerformance] = useState<PerformanceComparison>({ volumeEvolution: 0, loadEvolution: 0, freqEvolution: 0 });
 
     // Init
     useEffect(() => {
         const sId = getCurrentStudentId();
         if (!sId) { setIsLoading(false); return; }
         setStudentId(sId);
-        getStudentExercises(sId).then(exs => {
-            setExercises(exs);
-            if (exs.length > 0) setRepsExercise(exs[0]);
-        });
+        getStudentExercises(sId).then(setExercises);
         setIsLoading(false);
     }, []);
 
-    // Load evolution data
+    // Fetch Global Data
     useEffect(() => {
         if (!studentId) return;
-        setLoadLoading(true);
-        getLoadEvolution(studentId, loadPeriod, selectedExerciseLoad || undefined)
-            .then(d => { setLoadData(d); setLoadLoading(false); })
-            .catch(() => setLoadLoading(false));
-    }, [studentId, loadPeriod, selectedExerciseLoad]);
 
-    // Reps evolution data
-    useEffect(() => {
-        if (!studentId || !repsExercise) return;
-        setRepsLoading(true);
-        getRepsEvolution(studentId, repsExercise, repsPeriod)
-            .then(d => { setRepsData(d); setRepsLoading(false); })
-            .catch(() => setRepsLoading(false));
-    }, [studentId, repsExercise, repsPeriod]);
+        Promise.all([
+            getLoadEvolution(studentId, globalPeriod),
+            getTrainingFrequency(studentId, globalPeriod)
+        ]).then(([lData, fData]) => {
+            setLoadData(lData);
+            setFreqData(fData);
 
-    // Frequency data
+            setInsights(generateInsights(lData, fData, globalPeriod));
+            setStreak(getStreaks(fData));
+            setPerformance(getPerformanceComparison(lData, fData));
+        });
+    }, [studentId, globalPeriod]);
+
+    // Fetch exercise data (for both chart and expanded bottom list)
     useEffect(() => {
         if (!studentId) return;
-        setFreqLoading(true);
-        getTrainingFrequency(studentId, freqPeriod)
-            .then(d => { setFreqData(d); setFreqLoading(false); })
-            .catch(() => setFreqLoading(false));
-    }, [studentId, freqPeriod]);
-
-    // Insights
-    useEffect(() => {
-        if (loadData.length > 0 || freqData.length > 0) {
-            setInsights(generateInsights(loadData, freqData, loadPeriod));
-        }
-    }, [loadData, freqData, loadPeriod]);
+        const exercisesToFetch = [expandedExercise, selectedChartExercise].filter(Boolean) as string[];
+        
+        exercisesToFetch.forEach(ex => {
+            if (!repsDataMap[ex]) {
+                getRepsEvolution(studentId, ex, globalPeriod).then(data => {
+                    setRepsDataMap(prev => ({ ...prev, [ex]: data }));
+                });
+            }
+        });
+    }, [studentId, expandedExercise, selectedChartExercise, globalPeriod, repsDataMap]);
 
     // ────── CHART DATA ──────
 
-    // Module 1: Load chart
-    const loadChartData = useMemo(() => {
-        if (loadData.length === 0) return null;
+    const mergedChartData = useMemo(() => {
+        if (!selectedChartExercise) return { data: [], avgVolume: 0, avgLoad: 0, avgReps: 0, evolVolume: 0, evolLoad: 0, evolReps: 0 };
+        
+        const exerciseLoadData = loadData.filter(d => d.exercise_name === selectedChartExercise);
+        const exerciseRepsData = repsDataMap[selectedChartExercise] || [];
 
-        // Group by exercise
-        const byExercise = new Map<string, LoadEvolutionPoint[]>();
-        for (const p of loadData) {
-            if (!byExercise.has(p.exercise_name)) byExercise.set(p.exercise_name, []);
-            byExercise.get(p.exercise_name)!.push(p);
-        }
-
-        // Get unique dates sorted
-        const dates = [...new Set(loadData.map(p => p.date))].sort();
-        const labels = dates.map(fmtDate);
-
-        const datasets = Array.from(byExercise.entries()).map(([name, points], i) => {
-            const dateMap = new Map(points.map(p => [p.date, p]));
-            const color = chartPalette[i % chartPalette.length];
-            return {
-                label: name,
-                data: dates.map(d => {
-                    const pt = dateMap.get(d);
-                    return pt ? (loadMode === 'volume' ? pt.total_volume : pt.max_load) : null;
-                }),
-                borderColor: color,
-                backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
-                tension: 0.3,
-                fill: false,
-                pointRadius: 3,
-                pointHoverRadius: 6,
-                borderWidth: 2,
-                spanGaps: true
-            };
+        const byDate = new Map<string, { volume: number, load: number, reps: number }>();
+        exerciseLoadData.forEach(d => {
+            byDate.set(d.date, { volume: d.total_volume, load: d.max_load, reps: 0 });
+        });
+        
+        exerciseRepsData.forEach(d => {
+            if (!byDate.has(d.date)) byDate.set(d.date, { volume: 0, load: 0, reps: 0 });
+            const item = byDate.get(d.date)!;
+            item.reps = d.best_reps;
+            if (d.load_at_best > item.load) item.load = d.load_at_best;
         });
 
-        return { labels, datasets };
-    }, [loadData, loadMode]);
+        const sortedDates = Array.from(byDate.keys()).sort();
+        let bestVolume = -1;
+        let bestVolumeData: any = null;
 
-    // Module 2: Reps chart
-    const repsChartData = useMemo(() => {
-        if (repsData.length === 0) return null;
-        const labels = repsData.map(p => fmtDate(p.date));
-        return {
-            labels,
-            datasets: [
-                {
-                    label: 'Melhor Reps',
-                    data: repsData.map(p => p.best_reps),
-                    borderColor: COLORS.primary,
-                    backgroundColor: COLORS.primaryAlpha,
-                    tension: 0.3,
-                    fill: true,
-                    pointRadius: 4,
-                    pointHoverRadius: 7,
-                    borderWidth: 2,
-                    yAxisID: 'y'
-                },
-                {
-                    label: 'Carga (kg)',
-                    data: repsData.map(p => p.load_at_best),
-                    borderColor: COLORS.secondary,
-                    backgroundColor: 'transparent',
-                    tension: 0.3,
-                    fill: false,
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    yAxisID: 'y1'
-                }
-            ]
-        };
-    }, [repsData]);
-
-    // Module 3: Frequency chart (bar)
-    const freqChartData = useMemo(() => {
-        if (freqData.length === 0) return null;
-
-        if (freqMode === 'weekly') {
-            // Group by week
-            const weeks: { label: string; trained: number; total: number }[] = [];
-            for (let i = 0; i < freqData.length; i += 7) {
-                const week = freqData.slice(i, i + 7);
-                const trained = week.filter(d => d.trained).length;
-                const startLabel = fmtDate(week[0].date);
-                weeks.push({ label: `Sem ${startLabel}`, trained, total: week.length });
+        const finalData = sortedDates.map(d => {
+            const item = byDate.get(d)!;
+            const obj = {
+                rawDate: d,
+                dateLabel: fmtDate(d),
+                volume: item.volume,
+                load: item.load,
+                reps: item.reps,
+                isBest: false,
+                isLast: false
+            };
+            if (item.volume > bestVolume) {
+                bestVolume = item.volume;
+                bestVolumeData = obj;
             }
-            return {
-                labels: weeks.map(w => w.label),
-                datasets: [{
-                    label: 'Dias Treinados',
-                    data: weeks.map(w => w.trained),
-                    backgroundColor: weeks.map(w => w.trained >= 4 ? COLORS.success : w.trained >= 2 ? COLORS.secondary : COLORS.danger),
-                    borderRadius: 6,
-                    maxBarThickness: 40
-                }]
-            };
-        } else {
-            // Daily view — last 30 days
-            const last30 = freqData.slice(-30);
-            return {
-                labels: last30.map(d => fmtDate(d.date)),
-                datasets: [{
-                    label: 'Treinou',
-                    data: last30.map(d => d.trained ? 1 : 0),
-                    backgroundColor: last30.map(d => d.trained ? COLORS.success : 'rgba(148, 163, 184, 0.15)'),
-                    borderRadius: 4,
-                    maxBarThickness: 20
-                }]
-            };
-        }
-    }, [freqData, freqMode]);
+            return obj;
+        });
 
-    // ────── FREQUENCY STATS ──────
-    const freqStats = useMemo(() => {
-        const total = freqData.length;
-        const trained = freqData.filter(d => d.trained).length;
-        const pct = total > 0 ? Math.round((trained / total) * 100) : 0;
-        const last7 = freqData.slice(-7);
-        const last7Trained = last7.filter(d => d.trained).length;
-        return { total, trained, pct, last7Trained, last7Total: last7.length };
-    }, [freqData]);
+        if (bestVolumeData) bestVolumeData.isBest = true;
+        if (finalData.length > 0) finalData[finalData.length - 1].isLast = true;
+
+        const len = finalData.length || 1;
+        const avgVolume = Math.round(finalData.reduce((acc, curr) => acc + curr.volume, 0) / len);
+        const avgLoad = Math.round(finalData.reduce((acc, curr) => acc + curr.load, 0) / len);
+        const avgReps = Math.round(finalData.reduce((acc, curr) => acc + curr.reps, 0) / len);
+
+        let evolVolume = 0, evolLoad = 0, evolReps = 0;
+        if (finalData.length >= 2) {
+            const mid = Math.floor(finalData.length / 2);
+            const first = finalData.slice(0, mid);
+            const second = finalData.slice(mid);
+            const v1 = first.reduce((s, x) => s + x.volume, 0) / (first.length || 1);
+            const v2 = second.reduce((s, x) => s + x.volume, 0) / (second.length || 1);
+            if (v1 > 0) evolVolume = Math.round(((v2 - v1) / v1) * 100);
+            
+            const l1 = Math.max(...first.map(p => p.load), 0);
+            const l2 = Math.max(...second.map(p => p.load), 0);
+            evolLoad = l2 - l1;
+
+            const r1 = Math.max(...first.map(p => p.reps), 0);
+            const r2 = Math.max(...second.map(p => p.reps), 0);
+            evolReps = r2 - r1; 
+        }
+
+        return { data: finalData, avgVolume, avgLoad, avgReps, evolVolume, evolLoad, evolReps };
+    }, [loadData, repsDataMap, selectedChartExercise]);
+    
+    // Custom Tooltip component for Recharts
+    const CustomTooltip = ({ active, payload, label }: any) => {
+        if (active && payload && payload.length) {
+            const data = payload[0].payload;
+            return (
+                <div style={{
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    border: `1px solid rgba(255,255,255,0.1)`,
+                    borderRadius: '12px',
+                    padding: '16px',
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+                    minWidth: '160px'
+                }}>
+                    <p style={{ margin: '0 0 12px 0', color: '#fff', fontWeight: 700, fontSize: 14, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 8 }}>📅 {label}</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <span style={{ color: 'var(--neutral-400, #94a3b8)', fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
+                            <span>💪 Carga:</span> <strong style={{ color: '#fff' }}>{data.load}kg</strong>
+                        </span>
+                        <span style={{ color: 'var(--neutral-400, #94a3b8)', fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
+                            <span>🔁 Reps:</span> <strong style={{ color: '#fff' }}>{data.reps}</strong>
+                        </span>
+                        <span style={{ color: 'var(--neutral-400, #94a3b8)', fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
+                            <span>⚡ Volume:</span> <strong style={{ color: '#fff' }}>{data.volume}kg</strong>
+                        </span>
+                    </div>
+                </div>
+            );
+        }
+        return null;
+    };
+
+    // Customized dot for glowing the last point or best point
+    const renderCustomDot = (props: any, baseColor: string) => {
+        const { cx, cy, payload } = props;
+        if (payload.isLast || payload.isBest) {
+            return (
+                <svg key={`dot-${payload.rawDate}`} x={cx - 10} y={cy - 10} width={20} height={20} viewBox="0 0 20 20">
+                    <circle cx="10" cy="10" r="8" fill={baseColor} opacity="0.3" />
+                    <circle cx="10" cy="10" r="5" fill={baseColor} />
+                    <circle cx="10" cy="10" r="3" fill="#fff" />
+                    {payload.isBest && <text x="10" y="-2" fill="gold" fontSize="14" textAnchor="middle">🏆</text>}
+                </svg>
+            );
+        }
+        return <Dot cx={cx} cy={cy} r={4} fill={baseColor} strokeWidth={2} stroke="#1e293b" />;
+    };
 
     // ────── STYLES ──────
-    const cardStyle: React.CSSProperties = {
+    const cardStyle = {
         background: 'var(--background-primary, #fff)',
         borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border-color)',
-        overflow: 'hidden'
+        border: `1px solid ${COLORS.border}`,
+        padding: 'var(--spacing-4)',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+        marginBottom: 'var(--spacing-4)'
     };
-    const sectionHeaderStyle = (isActive: boolean): React.CSSProperties => ({
-        padding: 'var(--spacing-3) var(--spacing-4)',
-        cursor: 'pointer',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        background: isActive ? 'linear-gradient(135deg, var(--primary-50), var(--primary-100))' : 'var(--background-primary)',
-        borderBottom: isActive ? '1px solid var(--border-color)' : 'none',
-        transition: 'all 0.2s'
-    });
-    const pillStyle = (active: boolean): React.CSSProperties => ({
+
+    const pillStyle = (active: boolean) => ({
         padding: '6px 14px',
         borderRadius: 20,
         border: 'none',
         cursor: 'pointer',
         fontSize: 'var(--font-size-xs)',
-        fontWeight: 600,
-        background: active ? 'var(--primary-500)' : 'var(--background-secondary)',
+        fontWeight: 600 as const,
+        background: active ? 'var(--primary-500)' : COLORS.bgSecondary,
         color: active ? '#fff' : 'var(--text-secondary)',
-        transition: 'all 0.15s'
+        transition: 'all 0.2s',
+        flexShrink: 0
     });
-    const selectStyle: React.CSSProperties = {
-        padding: '6px 12px',
-        borderRadius: 'var(--radius-md)',
-        border: '1px solid var(--border-color)',
-        fontSize: 'var(--font-size-xs)',
-        fontFamily: 'inherit',
-        background: 'var(--background-primary)',
-        color: 'var(--text-primary)',
-        cursor: 'pointer'
+
+    const renderEvolutionText = (val: number, label: string) => {
+        const isPos = val >= 0;
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span style={{ fontSize: 'var(--font-size-md)', fontWeight: 800, color: isPos ? COLORS.success : COLORS.danger }}>
+                    {isPos ? '↑' : '↓'} {Math.abs(val)}%
+                </span>
+                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>{label}</span>
+            </div>
+        );
     };
-    const chartContainer: React.CSSProperties = {
-        position: 'relative',
-        height: 300,
-        padding: 'var(--spacing-3) var(--spacing-4)',
-    };
-    const spinnerBlock = (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-            <div className="spinner" />
-        </div>
-    );
-    const emptyBlock = (msg: string) => (
-        <div style={{ textAlign: 'center', padding: 'var(--spacing-6)', color: 'var(--text-secondary)' }}>
-            <div style={{ fontSize: 40, marginBottom: 'var(--spacing-2)', opacity: 0.4 }}>📊</div>
-            <p style={{ fontSize: 'var(--font-size-sm)' }}>{msg}</p>
-        </div>
-    );
 
     if (isLoading) {
         return (
             <AlunoLayout title="Evolução" menuItems={menuItems}>
-                <div className="loading-state"><div className="spinner" /><p>Carregando...</p></div>
+                <div className="loading-state"><div className="spinner" /><p>Carregando Dados...</p></div>
             </AlunoLayout>
         );
     }
 
     return (
         <AlunoLayout title="Evolução" menuItems={menuItems}>
-            <div style={{ padding: 0 }}>
-                {/* Header */}
-                <div style={{ marginBottom: 'var(--spacing-5)' }}>
-                    <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, marginBottom: 'var(--spacing-1)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
-                        📈 Área de Evolução
-                    </h3>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-                        Acompanhe sua evolução de carga, repetições e consistência
-                    </p>
+            <div style={{ paddingBottom: 'var(--spacing-6)', animation: 'fadeIn 0.4s ease-out' }}>
+
+                {/* Header & Filter */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-4)' }}>
+                    <div>
+                        <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, margin: 0, background: 'linear-gradient(to right, var(--primary-500) 0%, rgb(168, 85, 247) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            Sua Evolução
+                        </h2>
+                        <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>Acompanhamento de resultados</p>
+                    </div>
                 </div>
 
-                {/* ═══ INSIGHTS CARDS ═══ */}
-                {insights.length > 0 && (
+                {/* Period Selector (Horizontal Scroll) */}
+                <div style={{ display: 'flex', gap: 'var(--spacing-2)', overflowX: 'auto', paddingBottom: 'var(--spacing-2)', marginBottom: 'var(--spacing-3)', scrollbarWidth: 'none' }}>
+                    {PERIOD_OPTIONS.map(p => (
+                        <button key={p.value} style={pillStyle(globalPeriod === p.value)} onClick={() => setGlobalPeriod(p.value)}>
+                            {p.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* 🔥 RESUMO INTELIGENTE */}
+                <div style={cardStyle}>
+                    <h3 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, margin: '0 0 var(--spacing-3) 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        🔥 Resumo do Período
+                    </h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-2)' }}>
+                        {renderEvolutionText(performance.volumeEvolution, 'Volume')}
+                        {renderEvolutionText(performance.loadEvolution, 'Carga Máx')}
+                        {renderEvolutionText(performance.freqEvolution, 'Frequência')}
+                    </div>
+                </div>
+
+                {/* 📈 GRÁFICOS DO EXERCÍCIO COM TABS */}
+                <div style={{ ...cardStyle, overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)', marginBottom: 'var(--spacing-4)' }}>
+                        <div>
+                           <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                               📈 Evolução por Exercício
+                           </h3>
+                        </div>
+                        
+                        <div style={{ position: 'relative' }}>
+                            <select 
+                                value={selectedChartExercise || ''}
+                                onChange={(e) => setSelectedChartExercise(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 14px',
+                                    borderRadius: '8px',
+                                    background: COLORS.bgSecondary,
+                                    border: `1px solid ${COLORS.border}`,
+                                    color: 'var(--text-primary)',
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    appearance: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {exercises.length === 0 && <option value="">Nenhum exercício...</option>}
+                                {exercises.map(ex => (
+                                    <option key={ex} value={ex}>{ex}</option>
+                                ))}
+                            </select>
+                            <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: 12, color: COLORS.neutral }}>▼</span>
+                        </div>
+                    </div>
+
+                    {/* RESUMO INTELIGENTE DO EXERCÍCIO */}
+                    {mergedChartData.data.length > 0 && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: 'var(--spacing-5)' }}>
+                            <div style={{ background: mergedChartData.evolVolume >= 0 ? COLORS.successAlpha : COLORS.dangerAlpha, padding: 'var(--spacing-3)', borderRadius: 'var(--radius-md)', border: `1px solid ${mergedChartData.evolVolume >= 0 ? COLORS.success : COLORS.danger}20` }}>
+                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: 2 }}>🔥 Volume</span>
+                                <strong style={{ fontSize: '15px', color: mergedChartData.evolVolume >= 0 ? COLORS.success : COLORS.danger }}>
+                                    {mergedChartData.evolVolume > 0 ? '+' : ''}{mergedChartData.evolVolume}%
+                                </strong>
+                            </div>
+                            <div style={{ background: mergedChartData.evolLoad >= 0 ? COLORS.successAlpha : COLORS.dangerAlpha, padding: 'var(--spacing-3)', borderRadius: 'var(--radius-md)', border: `1px solid ${mergedChartData.evolLoad >= 0 ? COLORS.success : COLORS.danger}20` }}>
+                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: 2 }}>💪 Carga Máx</span>
+                                <strong style={{ fontSize: '15px', color: mergedChartData.evolLoad >= 0 ? COLORS.success : COLORS.danger }}>
+                                    {mergedChartData.evolLoad > 0 ? '+' : ''}{mergedChartData.evolLoad}kg
+                                </strong>
+                            </div>
+                            <div style={{ background: mergedChartData.evolReps >= 0 ? COLORS.successAlpha : COLORS.dangerAlpha, padding: 'var(--spacing-3)', borderRadius: 'var(--radius-md)', border: `1px solid ${mergedChartData.evolReps >= 0 ? COLORS.success : COLORS.danger}20` }}>
+                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: 2 }}>🔁 Reps Max</span>
+                                <strong style={{ fontSize: '15px', color: mergedChartData.evolReps >= 0 ? COLORS.success : COLORS.danger }}>
+                                    {mergedChartData.evolReps > 0 ? '+' : ''}{mergedChartData.evolReps}
+                                </strong>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TABS DE NAVEGAÇÃO DOS GRÁFICOS */}
+                    {mergedChartData.data.length > 0 && (
+                        <div style={{ display: 'flex', gap: 'var(--spacing-2)', marginBottom: 'var(--spacing-4)', overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
+                            <button style={pillStyle(chartTab === 'volume')} onClick={() => setChartTab('volume')}>Volume</button>
+                            <button style={pillStyle(chartTab === 'carga')} onClick={() => setChartTab('carga')}>Carga</button>
+                            <button style={pillStyle(chartTab === 'reps')} onClick={() => setChartTab('reps')}>Repetições</button>
+                        </div>
+                    )}
+
+                    {/* CONTAINER DO GRÁFICO SELECIONADO */}
+                    {mergedChartData.data.length > 0 ? (
+                        <div style={{ height: 260, width: '100%', position: 'relative' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                {chartTab === 'volume' ? (
+                                    <AreaChart data={mergedChartData.data} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="colorVolGrad" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.6}/>
+                                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0.0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={COLORS.border} opacity={0.4} />
+                                        <XAxis dataKey="dateLabel" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: COLORS.neutral }} minTickGap={15} dy={10} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: COLORS.neutral }} />
+                                        <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                                        <ReferenceLine y={mergedChartData.avgVolume} stroke={COLORS.neutral} strokeDasharray="3 3" strokeOpacity={0.5} label={{ position: 'insideTopLeft', value: 'Média', fill: COLORS.neutral, fontSize: 10 }} />
+                                        <Area type="monotone" dataKey="volume" stroke="url(#colorVolGrad)" strokeWidth={3} fill="url(#colorVolGrad)" dot={(props) => renderCustomDot(props, COLORS.primary)} activeDot={{ r: 0 }} />
+                                    </AreaChart>
+                                ) : chartTab === 'carga' ? (
+                                    <LineChart data={mergedChartData.data} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={COLORS.border} opacity={0.4} />
+                                        <XAxis dataKey="dateLabel" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: COLORS.neutral }} minTickGap={15} dy={10} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: COLORS.neutral }} />
+                                        <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                                        <ReferenceLine y={mergedChartData.avgLoad} stroke={COLORS.neutral} strokeDasharray="3 3" strokeOpacity={0.5} label={{ position: 'insideTopLeft', value: 'Média', fill: COLORS.neutral, fontSize: 10 }} />
+                                        <Line type="monotone" dataKey="load" stroke={COLORS.success} strokeWidth={3} dot={(props) => renderCustomDot(props, COLORS.success)} activeDot={{ r: 0 }} />
+                                    </LineChart>
+                                ) : (
+                                    <LineChart data={mergedChartData.data} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={COLORS.border} opacity={0.4} />
+                                        <XAxis dataKey="dateLabel" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: COLORS.neutral }} minTickGap={15} dy={10} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: COLORS.neutral }} />
+                                        <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                                        <ReferenceLine y={mergedChartData.avgReps} stroke={COLORS.neutral} strokeDasharray="3 3" strokeOpacity={0.5} label={{ position: 'insideTopLeft', value: 'Média', fill: COLORS.neutral, fontSize: 10 }} />
+                                        <Line type="monotone" dataKey="reps" stroke="#a855f7" strokeWidth={3} dot={(props) => renderCustomDot(props, '#a855f7')} activeDot={{ r: 0 }} />
+                                    </LineChart>
+                                )}
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div style={{ textAlign: 'center', padding: 'var(--spacing-5)', color: 'var(--text-secondary)' }}>
+                            Sem dados suficientes para este exercício no período.
+                        </div>
+                    )}
+                </div>
+
+                {/* 📅 CONSISTÊNCIA DE TREINO (GITHUB CALENDAR) & GAMIFICAÇÃO */}
+                <div style={cardStyle}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-3)' }}>
+                        <h3 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            📅 Consistência
+                        </h3>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span style={{ fontSize: 16 }}>🔥</span>
+                                <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)' }}>{streak.currentStreak}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span style={{ fontSize: 16 }}>🏆</span>
+                                <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: COLORS.neutral }}>{streak.bestStreak}</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                        gap: 'var(--spacing-3)',
-                        marginBottom: 'var(--spacing-5)'
+                        gridTemplateColumns: 'repeat(7, 1fr)',
+                        gap: 4,
+                        marginTop: 'var(--spacing-2)'
                     }}>
+                        {/* We show the last 28 days to make 4 perfect weeks (7 columns) */}
+                        {freqData.slice(-28).map((day, i) => {
+                            const isToday = day.date === new Date().toISOString().split('T')[0];
+                            let bgColor = COLORS.bgSecondary;
+                            if (day.trained) {
+                                // Simulate intensity colors if we have multiple sessions, otherwise default green
+                                bgColor = day.session_count > 1 ? 'rgb(21, 128, 61)' : COLORS.success;
+                            }
+
+                            return (
+                                <div
+                                    key={i}
+                                    title={`${fmtDate(day.date)} ${day.trained ? '✅' : '❌'}`}
+                                    style={{
+                                        aspectRatio: '1/1',
+                                        borderRadius: 4,
+                                        backgroundColor: bgColor,
+                                        border: isToday ? `2px solid var(--primary-500)` : 'none',
+                                        opacity: day.trained ? 1 : 0.6
+                                    }}
+                                />
+                            );
+                        })}
+                    </div>
+                    <p style={{ fontSize: '10px', textAlign: 'center', marginTop: 'var(--spacing-3)', color: 'var(--text-secondary)' }}>Últimos 28 dias</p>
+                </div>
+
+                {/* 🤖 INSIGHTS AUTOMÁTICOS */}
+                {insights.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)', marginBottom: 'var(--spacing-4)' }}>
                         {insights.map((insight, i) => (
                             <div key={i} style={{
-                                ...cardStyle,
-                                padding: 'var(--spacing-3) var(--spacing-4)',
-                                borderLeft: `4px solid ${insight.type === 'positive' ? COLORS.success : insight.type === 'negative' ? COLORS.danger : COLORS.secondary}`,
-                                display: 'flex', alignItems: 'flex-start', gap: 'var(--spacing-2)'
+                                background: insight.type === 'positive' ? COLORS.successAlpha : (insight.type === 'negative' ? COLORS.dangerAlpha : COLORS.bgSecondary),
+                                borderRadius: 'var(--radius-md)',
+                                padding: 'var(--spacing-3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--spacing-3)',
+                                border: `1px solid ${insight.type === 'positive' ? COLORS.success : (insight.type === 'negative' ? COLORS.danger : COLORS.border)}`
                             }}>
-                                <span style={{ fontSize: 20, flexShrink: 0 }}>{insight.icon}</span>
-                                <p style={{ fontSize: 'var(--font-size-xs)', lineHeight: 1.5, color: 'var(--text-primary)', margin: 0 }}>
+                                <span style={{ fontSize: 24 }}>{insight.icon}</span>
+                                <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.4 }}>
                                     {insight.text}
                                 </p>
                             </div>
@@ -398,263 +509,93 @@ export default function Evolucao() {
                     </div>
                 )}
 
-                {/* ═══════════════════════════════════════════ */}
-                {/* ═══ MODULE 1: EVOLUÇÃO DE CARGA ═══ */}
-                {/* ═══════════════════════════════════════════ */}
-                <div style={{ ...cardStyle, marginBottom: 'var(--spacing-4)' }}>
-                    <div style={sectionHeaderStyle(activeSection === 1)} onClick={() => setActiveSection(activeSection === 1 ? 1 : 1)}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
-                            <span style={{ fontSize: 18 }}>🏋️</span>
-                            <strong style={{ fontSize: 'var(--font-size-sm)' }}>Evolução de Carga</strong>
-                        </div>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-secondary)" style={{ transform: activeSection === 1 ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                        </svg>
+                {/* 🏋️ EVOLUÇÃO POR EXERCÍCIO (EXPANDABLE CARDS) */}
+                <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 800, margin: 'var(--spacing-5) 0 var(--spacing-3) 0' }}>
+                    🏋️ Evolução por Exercício
+                </h3>
+
+                {exercises.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 'var(--spacing-5)', color: 'var(--text-secondary)', background: COLORS.bgSecondary, borderRadius: 'var(--radius-lg)' }}>
+                        Nenhum exercício registrado neste período.
                     </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+                        {exercises.map(ex => {
+                            const isExpanded = expandedExercise === ex;
+                            const exRepsData = repsDataMap[ex] || [];
+                            const hasData = exRepsData.length > 0;
 
-                    {activeSection === 1 && (
-                        <div>
-                            {/* Filters */}
-                            <div style={{ padding: 'var(--spacing-3) var(--spacing-4)', borderBottom: '1px solid var(--border-color)', display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-2)', alignItems: 'center' }}>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Período:</span>
-                                {PERIOD_OPTIONS.map(p => (
-                                    <button key={p.value} style={pillStyle(loadPeriod === p.value)} onClick={() => setLoadPeriod(p.value)}>
-                                        {p.label}
-                                    </button>
-                                ))}
-                                <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--spacing-2)', alignItems: 'center' }}>
-                                    <select style={selectStyle} value={selectedExerciseLoad} onChange={e => setSelectedExerciseLoad(e.target.value)}>
-                                        <option value="">Todos exercícios</option>
-                                        {exercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}
-                                    </select>
-                                    <button style={pillStyle(loadMode === 'volume')} onClick={() => setLoadMode('volume')}>Volume</button>
-                                    <button style={pillStyle(loadMode === 'max')} onClick={() => setLoadMode('max')}>Carga Máx</button>
-                                </div>
-                            </div>
+                            // Get latest stats
+                            const latest = hasData ? exRepsData[exRepsData.length - 1] : null;
+                            const first = hasData ? exRepsData[0] : null;
+                            const loadEvol = (latest && first && first.load_at_best > 0) ? Math.round(((latest.load_at_best - first.load_at_best) / first.load_at_best) * 100) : 0;
 
-                            {/* Chart */}
-                            {loadLoading ? spinnerBlock : loadChartData ? (
-                                <div style={chartContainer}>
-                                    <Line data={loadChartData} options={baseLineOpts(loadMode === 'volume' ? 'Volume (kg × reps)' : 'Carga Máxima (kg)')} />
-                                </div>
-                            ) : emptyBlock('Nenhum dado de carga encontrado para o período selecionado. Complete treinos para ver sua evolução!')}
-                        </div>
-                    )}
-                </div>
-
-                {/* ═══════════════════════════════════════════ */}
-                {/* ═══ MODULE 2: EVOLUÇÃO DE REPS ═══ */}
-                {/* ═══════════════════════════════════════════ */}
-                <div style={{ ...cardStyle, marginBottom: 'var(--spacing-4)' }}>
-                    <div style={sectionHeaderStyle(activeSection === 2)} onClick={() => setActiveSection(2)}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
-                            <span style={{ fontSize: 18 }}>🔄</span>
-                            <strong style={{ fontSize: 'var(--font-size-sm)' }}>Evolução de Repetições</strong>
-                        </div>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-secondary)" style={{ transform: activeSection === 2 ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                        </svg>
-                    </div>
-
-                    {activeSection === 2 && (
-                        <div>
-                            {/* Filters */}
-                            <div style={{ padding: 'var(--spacing-3) var(--spacing-4)', borderBottom: '1px solid var(--border-color)', display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-2)', alignItems: 'center' }}>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Exercício:</span>
-                                <select style={{ ...selectStyle, minWidth: 180 }} value={repsExercise} onChange={e => setRepsExercise(e.target.value)}>
-                                    {exercises.length === 0 && <option value="">Nenhum exercício</option>}
-                                    {exercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}
-                                </select>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', fontWeight: 600, marginLeft: 'var(--spacing-2)' }}>Período:</span>
-                                {PERIOD_OPTIONS.map(p => (
-                                    <button key={p.value} style={pillStyle(repsPeriod === p.value)} onClick={() => setRepsPeriod(p.value)}>
-                                        {p.label}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Chart */}
-                            {repsLoading ? spinnerBlock : repsChartData ? (
-                                <div style={chartContainer}>
-                                    {/* Custom split legend: Reps left, Carga right */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 'var(--spacing-2)' }}>
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
-                                            <span style={{ width: 10, height: 10, borderRadius: '50%', background: COLORS.primary, display: 'inline-block' }} />
-                                            Melhor Reps (eixo esquerdo)
-                                        </span>
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
-                                            Carga em kg (eixo direito)
-                                            <span style={{ width: 10, height: 10, borderRadius: '50%', background: COLORS.secondary, display: 'inline-block' }} />
-                                        </span>
-                                    </div>
-                                    <Line
-                                        data={repsChartData}
-                                        options={{
-                                            ...baseLineOpts('Repetições'),
-                                            scales: {
-                                                ...baseLineOpts('Repetições').scales,
-                                                y1: {
-                                                    type: 'linear' as const,
-                                                    position: 'right' as const,
-                                                    beginAtZero: true,
-                                                    title: { display: true, text: 'Carga (kg)', font: { size: 11 }, color: COLORS.secondary },
-                                                    grid: { display: false },
-                                                    ticks: { font: { size: 10 }, color: COLORS.secondary }
-                                                }
-                                            },
-                                            plugins: {
-                                                ...baseLineOpts('Repetições').plugins,
-                                                legend: { display: false },
-                                                tooltip: {
-                                                    ...baseLineOpts('Repetições').plugins.tooltip,
-                                                    callbacks: {
-                                                        afterBody: (ctx: any) => {
-                                                            const idx = ctx[0]?.dataIndex;
-                                                            if (idx !== undefined && repsData[idx]) {
-                                                                return [
-                                                                    `📅 ${fmtDateFull(repsData[idx].date)}`,
-                                                                    `Média Reps: ${repsData[idx].avg_reps}`,
-                                                                    `Média Carga: ${repsData[idx].avg_load} kg`
-                                                                ];
-                                                            }
-                                                            return [];
-                                                        }
-                                                    }
-                                                }
-                                            }
+                            return (
+                                <div key={ex} style={{ ...cardStyle, marginBottom: 0, padding: 0, overflow: 'hidden' }}>
+                                    {/* Header (Click to expand) */}
+                                    <div
+                                        onClick={() => setExpandedExercise(isExpanded ? null : ex)}
+                                        style={{
+                                            padding: 'var(--spacing-3) var(--spacing-4)',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            cursor: 'pointer',
+                                            background: isExpanded ? COLORS.bgSecondary : 'transparent'
                                         }}
-                                    />
-                                </div>
-                            ) : emptyBlock('Selecione um exercício e complete treinos para ver a evolução de repetições.')}
-                        </div>
-                    )}
-                </div>
-
-                {/* ═══════════════════════════════════════════ */}
-                {/* ═══ MODULE 3: CONSISTÊNCIA ═══ */}
-                {/* ═══════════════════════════════════════════ */}
-                <div style={{ ...cardStyle, marginBottom: 'var(--spacing-4)' }}>
-                    <div style={sectionHeaderStyle(activeSection === 3)} onClick={() => setActiveSection(3)}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
-                            <span style={{ fontSize: 18 }}>📅</span>
-                            <strong style={{ fontSize: 'var(--font-size-sm)' }}>Consistência de Treino</strong>
-                        </div>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-secondary)" style={{ transform: activeSection === 3 ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                        </svg>
-                    </div>
-
-                    {activeSection === 3 && (
-                        <div>
-                            {/* Filters */}
-                            <div style={{ padding: 'var(--spacing-3) var(--spacing-4)', borderBottom: '1px solid var(--border-color)', display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-2)', alignItems: 'center' }}>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Período:</span>
-                                {PERIOD_OPTIONS.slice(0, 3).map(p => (
-                                    <button key={p.value} style={pillStyle(freqPeriod === p.value)} onClick={() => setFreqPeriod(p.value)}>
-                                        {p.label}
-                                    </button>
-                                ))}
-                                <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--spacing-2)' }}>
-                                    <button style={pillStyle(freqMode === 'monthly')} onClick={() => setFreqMode('monthly')}>Mensal</button>
-                                    <button style={pillStyle(freqMode === 'weekly')} onClick={() => setFreqMode('weekly')}>Semanal</button>
-                                </div>
-                            </div>
-
-                            {/* Summary cards */}
-                            <div style={{ padding: 'var(--spacing-3) var(--spacing-4)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--spacing-3)' }}>
-                                <div style={{ textAlign: 'center', padding: 'var(--spacing-2)', background: 'var(--background-secondary)', borderRadius: 'var(--radius-md)' }}>
-                                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>Dias Treinados</div>
-                                    <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: COLORS.success }}>{freqStats.trained}</div>
-                                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>de {freqStats.total} dias</div>
-                                </div>
-                                <div style={{ textAlign: 'center', padding: 'var(--spacing-2)', background: 'var(--background-secondary)', borderRadius: 'var(--radius-md)' }}>
-                                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>Frequência</div>
-                                    <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: freqStats.pct >= 50 ? COLORS.success : COLORS.secondary }}>{freqStats.pct}%</div>
-                                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>do período</div>
-                                </div>
-                                <div style={{ textAlign: 'center', padding: 'var(--spacing-2)', background: 'var(--background-secondary)', borderRadius: 'var(--radius-md)' }}>
-                                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>Última Semana</div>
-                                    <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: freqStats.last7Trained >= 4 ? COLORS.success : COLORS.secondary }}>{freqStats.last7Trained}/{freqStats.last7Total}</div>
-                                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>dias</div>
-                                </div>
-                            </div>
-
-                            {/* Calendar Heatmap */}
-                            {freqLoading ? spinnerBlock : freqData.length > 0 ? (
-                                <>
-                                    {/* Visual calendar grid */}
-                                    <div style={{ padding: 'var(--spacing-2) var(--spacing-4)' }}>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                                            {freqData.slice(-42).map((day, i) => {
-                                                const isToday = day.date === new Date().toISOString().split('T')[0];
-                                                return (
-                                                    <div
-                                                        key={i}
-                                                        title={`${fmtDateFull(day.date)} — ${day.trained ? 'Treinou ✅' : 'Não treinou'}`}
-                                                        style={{
-                                                            width: 22, height: 22,
-                                                            borderRadius: 4,
-                                                            background: day.trained ? COLORS.success : 'var(--background-secondary)',
-                                                            border: isToday ? `2px solid ${COLORS.primary}` : '1px solid var(--border-color)',
-                                                            cursor: 'default',
-                                                            transition: 'transform 0.1s',
-                                                            opacity: day.trained ? 1 : 0.4
-                                                        }}
-                                                    />
-                                                );
-                                            })}
+                                    >
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>{ex}</strong>
+                                            {hasData && latest && (
+                                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginTop: 2 }}>
+                                                    Max: {latest.load_at_best}kg | Reps: {latest.best_reps}
+                                                </span>
+                                            )}
                                         </div>
-                                        <div style={{ display: 'flex', gap: 'var(--spacing-3)', marginTop: 'var(--spacing-2)', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <span style={{ width: 10, height: 10, borderRadius: 2, background: COLORS.success, display: 'inline-block' }} /> Treinou
-                                            </span>
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--background-secondary)', border: '1px solid var(--border-color)', display: 'inline-block', opacity: 0.4 }} /> Não treinou
-                                            </span>
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <span style={{ width: 10, height: 10, borderRadius: 2, border: `2px solid ${COLORS.primary}`, display: 'inline-block' }} /> Hoje
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-3)' }}>
+                                            {hasData && loadEvol !== 0 && (
+                                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: loadEvol > 0 ? COLORS.success : COLORS.danger, background: loadEvol > 0 ? COLORS.successAlpha : COLORS.dangerAlpha, padding: '2px 8px', borderRadius: 12 }}>
+                                                    {loadEvol > 0 ? '↑' : '↓'} {Math.abs(loadEvol)}%
+                                                </span>
+                                            )}
+                                            <span style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: 12, color: COLORS.neutral }}>
+                                                ▼
                                             </span>
                                         </div>
                                     </div>
 
-                                    {/* Bar chart */}
-                                    {freqChartData && (
-                                        <div style={{ ...chartContainer, height: 200 }}>
-                                            <Bar
-                                                data={freqChartData}
-                                                options={{
-                                                    ...baseLineOpts(freqMode === 'weekly' ? 'Dias Treinados' : 'Treinou'),
-                                                    plugins: {
-                                                        ...baseLineOpts('').plugins,
-                                                        legend: { display: false }
-                                                    },
-                                                    scales: {
-                                                        ...baseLineOpts('').scales,
-                                                        y: {
-                                                            ...baseLineOpts('').scales.y,
-                                                            max: freqMode === 'weekly' ? 7 : 1,
-                                                            ticks: {
-                                                                ...baseLineOpts('').scales.y.ticks,
-                                                                stepSize: 1,
-                                                                callback: (v: any) => freqMode === 'monthly' ? (v === 1 ? 'Sim' : 'Não') : v
-                                                            }
-                                                        }
-                                                    }
-                                                }}
-                                            />
+                                    {/* Expanded Body Data */}
+                                    {isExpanded && (
+                                        <div style={{ padding: 'var(--spacing-3) var(--spacing-4)', borderTop: `1px solid ${COLORS.border}`, animation: 'fadeIn 0.2s ease-out' }}>
+                                            {!hasData ? (
+                                                <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', margin: 0, textAlign: 'center' }}>Carregando dados...</p>
+                                            ) : (
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-3)' }}>
+                                                    <div style={{ background: COLORS.bgSecondary, padding: 'var(--spacing-2)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                                                        <span style={{ display: 'block', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 2 }}>Melhor Carga</span>
+                                                        <strong style={{ fontSize: 'var(--font-size-md)', color: COLORS.primary }}>{Math.max(...exRepsData.map(d => d.load_at_best))}kg</strong>
+                                                    </div>
+                                                    <div style={{ background: COLORS.bgSecondary, padding: 'var(--spacing-2)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                                                        <span style={{ display: 'block', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 2 }}>Melhor Reps</span>
+                                                        <strong style={{ fontSize: 'var(--font-size-md)', color: COLORS.primary }}>{Math.max(...exRepsData.map(d => d.best_reps))}</strong>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
-                                </>
-                            ) : emptyBlock('Nenhum dado de frequência encontrado. Complete treinos para ver sua consistência!')}
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer info */}
-                <div style={{ textAlign: 'center', padding: 'var(--spacing-3)', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', opacity: 0.6 }}>
-                    Os dados são baseados nos treinos concluídos via Iniciar Treino
-                </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
+
+            <style>{`
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(5px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
         </AlunoLayout>
     );
 }

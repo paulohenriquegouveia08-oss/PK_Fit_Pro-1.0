@@ -1,4 +1,5 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { supabase } from '../../../shared/services/supabase';
 import { DashboardLayout } from '../../../shared/components/layout';
 import {
     getAcademyMembers,
@@ -35,6 +36,7 @@ interface FormData {
     professor_id: string;
     plan_id: string;
     payment_method: 'dinheiro' | 'pix' | 'credito' | 'debito' | 'pagar_depois';
+    photo_url: string;
 }
 
 const initialFormData: FormData = {
@@ -43,7 +45,8 @@ const initialFormData: FormData = {
     phone: '',
     professor_id: '',
     plan_id: '',
-    payment_method: 'pagar_depois'
+    payment_method: 'pagar_depois',
+    photo_url: ''
 };
 
 // Student with plan info
@@ -57,6 +60,7 @@ interface StudentWithPlan extends AcademyMember {
     plan_allowed_end_time?: string;
     plan_price?: number;
     payment_status?: 'pago' | 'nao_pago';
+    photo_url?: string;
 }
 
 export default function Alunos() {
@@ -79,6 +83,14 @@ export default function Alunos() {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [academyId, setAcademyId] = useState<string | null>(null);
     const [selectedPlanPreview, setSelectedPlanPreview] = useState<Plan | null>(null);
+    
+    // Camera state
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+    const [capturedImage, setCapturedImage] = useState<string | null>(null);
+    const [cameraError, setCameraError] = useState<string | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     // Payment Modal State
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -179,50 +191,68 @@ export default function Alunos() {
         setIsSubmitting(true);
         setMessage(null);
 
-        const result = await createAcademyMember({
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone || undefined,
-            role: 'ALUNO',
-            academy_id: academyId,
-            professor_id: formData.professor_id || undefined
-        });
-
-        if (result.success && result.data) {
-            // Create student plan link
-            const planResult = await createStudentPlan(result.data.id, formData.plan_id, academyId);
-
-            if (planResult.success) {
-                // Determine if payment should be marked immediately
-                if (formData.payment_method !== 'pagar_depois' && selectedPlanPreview?.price) {
-                    const payResult = await markStudentPlanAsPaid(
-                        result.data.id,
-                        formData.plan_id,
-                        academyId,
-                        selectedPlanPreview.price,
-                        formData.payment_method
-                    );
-                    if (payResult.success) {
-                        setMessage({ type: 'success', text: 'Aluno criado, plano vinculado e pagamento registrado com sucesso!' });
-                    } else {
-                        setMessage({ type: 'success', text: 'Aluno criado e plano vinculado, mas erro ao registrar pagamento: ' + (payResult.error || '') });
-                    }
+        try {
+            let photoUrlToSave = '';
+            
+            // Fazer upload se houver imagem capturada
+            if (capturedImage && !capturedImage.startsWith('http')) {
+                const uploadedUrl = await uploadPhoto(capturedImage);
+                if (uploadedUrl) {
+                    photoUrlToSave = uploadedUrl;
                 } else {
-                    setMessage({ type: 'success', text: 'Aluno criado e plano vinculado com sucesso (Pagamento pendente).' });
+                    // Se falhou o upload e tinha imagem, perguntar ou avisar
+                    setMessage({ type: 'error', text: 'Não foi possível salvar a foto. Verifique a conexão ou as permissões do Supabase.' });
+                    setIsSubmitting(false);
+                    return;
                 }
-            } else {
-                setMessage({ type: 'success', text: 'Aluno criado, mas houve erro ao vincular plano: ' + (planResult.error || '') });
             }
 
-            setFormData(initialFormData);
-            setSelectedPlanPreview(null);
-            setShowModal(false);
-            loadData();
-        } else {
-            setMessage({ type: 'error', text: result.error || 'Erro ao criar aluno' });
-        }
+            const result = await createAcademyMember({
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone || undefined,
+                role: 'ALUNO',
+                academy_id: academyId,
+                professor_id: formData.professor_id || undefined,
+                photo_url: photoUrlToSave || undefined
+            });
 
-        setIsSubmitting(false);
+            if (result.success && result.data) {
+                // ... (existing plan logic)
+                const planResult = await createStudentPlan(result.data.id, formData.plan_id, academyId);
+
+                if (planResult.success) {
+                    if (formData.payment_method !== 'pagar_depois' && selectedPlanPreview?.price) {
+                        const payResult = await markStudentPlanAsPaid(
+                            result.data.id,
+                            formData.plan_id,
+                            academyId,
+                            selectedPlanPreview.price,
+                            formData.payment_method
+                        );
+                        if (payResult.success) {
+                            setMessage({ type: 'success', text: 'Aluno criado, plano vinculado e pagamento registrado com sucesso!' });
+                        } else {
+                            setMessage({ type: 'success', text: 'Aluno criado e plano vinculado, mas erro ao registrar pagamento.' });
+                        }
+                    } else {
+                        setMessage({ type: 'success', text: 'Aluno criado com sucesso.' });
+                    }
+                }
+                
+                setFormData(initialFormData);
+                setSelectedPlanPreview(null);
+                setShowModal(false);
+                loadData();
+            } else {
+                setMessage({ type: 'error', text: result.error || 'Erro ao criar aluno' });
+            }
+        } catch (error) {
+            console.error('Error in handleSubmit:', error);
+            setMessage({ type: 'error', text: 'Erro ao processar cadastro' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Handle renew student
@@ -275,6 +305,70 @@ export default function Alunos() {
         setIsSubmitting(false);
     };
 
+    useEffect(() => {
+        if (isCameraOpen && cameraStream && videoRef.current) {
+            videoRef.current.srcObject = cameraStream;
+        }
+    }, [isCameraOpen, cameraStream]);
+
+    const startCamera = async () => {
+        setCameraError(null);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: 640, height: 480 } 
+            });
+            setCameraStream(stream);
+            setIsCameraOpen(true);
+            setCapturedImage(null); // Reset capture when opening camera
+        } catch (err: any) {
+            console.error('Erro ao acessar câmera:', err);
+            setCameraError('Permissão de câmera negada ou dispositivo não encontrado.');
+            setIsCameraOpen(false);
+        }
+    };
+
+    const stopCamera = () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+        setIsCameraOpen(false);
+    };
+
+    const takePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            const context = canvas.getContext('2d');
+
+            if (context) {
+                // Redimensionamento automático para formato iDFace (proporção vertical ou quadrada)
+                // Vamos usar 400x400 para garantir compatibilidade e boa qualidade
+                canvas.width = 400;
+                canvas.height = 400;
+
+                // Calcular crop centralizado
+                const size = Math.min(video.videoWidth, video.videoHeight);
+                const x = (video.videoWidth - size) / 2;
+                const y = (video.videoHeight - size) / 2;
+
+                context.drawImage(video, x, y, size, size, 0, 0, 400, 400);
+
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                setCapturedImage(dataUrl);
+                stopCamera();
+            }
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [cameraStream]);
+
     const openRenewModal = (student: StudentWithPlan) => {
         setRenewStudent(student);
         setRenewFormData({
@@ -283,10 +377,95 @@ export default function Alunos() {
             phone: student.phone || '',
             professor_id: student.professor_id || '',
             plan_id: '',
-            payment_method: 'pagar_depois'
+            payment_method: 'pagar_depois',
+            photo_url: student.photo_url || ''
         });
         setSelectedPlanPreview(null);
         setShowRenewModal(true);
+    };
+
+    const uploadPhoto = async (dataUrl: string): Promise<string | null> => {
+        try {
+            console.log('Iniciando processo de upload...');
+            
+            // Conversão manual de base64 para Blob (mais estável que fetch em alguns casos)
+            const parts = dataUrl.split(',');
+            const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+            const bstr = atob(parts[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            const blob = new Blob([u8arr], { type: mime });
+            
+            console.log('Blob gerado com sucesso, iniciando upload para Supabase...');
+            
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+            const filePath = `student-photos/${fileName}`;
+
+            const { error } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, blob, {
+                    contentType: 'image/jpeg',
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (error) {
+                console.error('Erro retornado pelo Supabase Storage:', error);
+                throw error;
+            }
+
+            console.log('Upload concluído, gerando URL pública...');
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            console.log('URL pública gerada:', publicUrl);
+            return publicUrl;
+        } catch (err: any) {
+            console.error('Erro capturado no uploadPhoto:', err);
+            
+            // Tratamento de mensagens de erro comuns
+            let errorMessage = err.message || 'Erro desconhecido';
+            
+            if (errorMessage === 'Failed to fetch') {
+                errorMessage = 'Falha na conexão com o Supabase. Verifique sua internet ou se o serviço de Storage está ativo.';
+            } else if (errorMessage.includes('row-level security')) {
+                errorMessage = 'Permissão negada (RLS). Execute o SQL de permissões no Supabase.';
+            }
+
+            setCameraError(`Erro: ${errorMessage}`);
+            return null;
+        }
+    };
+
+    const handleRemovePhoto = () => {
+        setCapturedImage(null);
+        setFormData(prev => ({ ...prev, photo_url: '' }));
+        setEditFormData(prev => ({ ...prev, photo_url: '' }));
+    };
+
+    const handleOpenNewModal = () => {
+        setFormData(initialFormData);
+        setCapturedImage(null);
+        setShowModal(true);
+    };
+
+    const handleOpenEditModal = (student: StudentWithPlan) => {
+        setSelectedStudent(student);
+        setEditFormData({
+            name: student.name,
+            email: student.email,
+            phone: student.phone || '',
+            professor_id: student.professor_id || '',
+            plan_id: student.plan_id || '',
+            payment_method: 'pagar_depois',
+            photo_url: student.photo_url || ''
+        });
+        setCapturedImage(student.photo_url || null);
+        setShowEditModal(true);
     };
 
     // Handle edit student
@@ -297,26 +476,48 @@ export default function Alunos() {
         setIsSubmitting(true);
         setMessage(null);
 
-        const result = await updateAcademyMember(
-            selectedStudent.id,
-            {
-                name: editFormData.name,
-                email: editFormData.email.toLowerCase(),
-                phone: editFormData.phone || undefined
-            },
-            editFormData.professor_id || undefined
-        );
+        try {
+            let photoUrlToSave = editFormData.photo_url;
 
-        if (result.success) {
-            setMessage({ type: 'success', text: 'Aluno atualizado com sucesso!' });
-            setShowEditModal(false);
-            setSelectedStudent(null);
-            loadData();
-        } else {
-            setMessage({ type: 'error', text: result.error || 'Erro ao atualizar aluno' });
+            // Fazer upload se houver nova imagem capturada
+            if (capturedImage && !capturedImage.startsWith('http')) {
+                const uploadedUrl = await uploadPhoto(capturedImage);
+                if (uploadedUrl) {
+                    photoUrlToSave = uploadedUrl;
+                } else {
+                    setMessage({ type: 'error', text: 'Erro ao fazer upload da nova foto. Tente novamente.' });
+                    setIsSubmitting(false);
+                    return;
+                }
+            } else if (!capturedImage) {
+                photoUrlToSave = '';
+            }
+
+            const result = await updateAcademyMember(
+                selectedStudent.id,
+                {
+                    name: editFormData.name,
+                    email: editFormData.email.toLowerCase(),
+                    phone: editFormData.phone || undefined,
+                    photo_url: photoUrlToSave || undefined
+                },
+                editFormData.professor_id || undefined
+            );
+
+            if (result.success) {
+                setMessage({ type: 'success', text: 'Aluno atualizado com sucesso!' });
+                setShowEditModal(false);
+                setSelectedStudent(null);
+                loadData();
+            } else {
+                setMessage({ type: 'error', text: result.error || 'Erro ao atualizar aluno' });
+            }
+        } catch (error) {
+            console.error('Error in handleEdit:', error);
+            setMessage({ type: 'error', text: 'Erro ao atualizar aluno' });
+        } finally {
+            setIsSubmitting(false);
         }
-
-        setIsSubmitting(false);
     };
 
     // Handle toggle status
@@ -407,19 +608,7 @@ export default function Alunos() {
         }
     }, [message]);
 
-    // Open edit modal
-    const openEditModal = (student: StudentWithPlan) => {
-        setSelectedStudent(student);
-        setEditFormData({
-            name: student.name,
-            email: student.email,
-            phone: student.phone || '',
-            professor_id: student.professor_id || '',
-            plan_id: '',
-            payment_method: 'pagar_depois'
-        });
-        setShowEditModal(true);
-    };
+
 
     // Plan preview info for the create modal
     const renderPlanPreview = () => {
@@ -509,7 +698,7 @@ export default function Alunos() {
 
                 <div className="page-header">
                     <h2>Gerenciar Alunos</h2>
-                    <button className="btn-add" onClick={() => setShowModal(true)}>
+                    <button className="btn-add" onClick={handleOpenNewModal}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                         </svg>
@@ -564,8 +753,16 @@ export default function Alunos() {
                     <div className="users-grid">
                         {filteredStudents.map((aluno) => (
                             <div key={aluno.id} className="user-card">
-                                <div className="user-card-avatar">
-                                    {getInitials(aluno.name)}
+                                <div className="user-card-avatar" style={{ overflow: 'hidden' }}>
+                                    {aluno.photo_url ? (
+                                        <img 
+                                            src={aluno.photo_url} 
+                                            alt={aluno.name} 
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                        />
+                                    ) : (
+                                        getInitials(aluno.name)
+                                    )}
                                 </div>
                                 <div className="user-card-info">
                                     <div className="user-card-name">{aluno.name}</div>
@@ -681,7 +878,7 @@ export default function Alunos() {
                                     <button
                                         className="action-btn edit"
                                         title="Editar"
-                                        onClick={() => openEditModal(aluno)}
+                                        onClick={() => handleOpenEditModal(aluno)}
                                     >
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                             <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
@@ -719,6 +916,52 @@ export default function Alunos() {
                             </div>
                             <form onSubmit={handleSubmit}>
                                 <div className="modal-body">
+                                    {/* Camera Section */}
+                                    <div className="form-group" style={{ marginBottom: 'var(--spacing-4)' }}>
+                                        <label className="form-label">Foto do Aluno</label>
+                                        <div className="camera-container" style={{ 
+                                            width: '100%', 
+                                            aspectRatio: '1', 
+                                            maxHeight: '280px',
+                                            background: 'var(--gray-900)', 
+                                            borderRadius: 'var(--radius-lg)', 
+                                            overflow: 'hidden',
+                                            position: 'relative',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            {isCameraOpen ? (
+                                                <>
+                                                    <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    <button type="button" onClick={takePhoto} style={{ position: 'absolute', bottom: '15px', padding: '10px 20px', borderRadius: 'var(--radius-full)', background: 'var(--primary-500)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+                                                        📸 Capturar agora
+                                                    </button>
+                                                </>
+                                            ) : capturedImage ? (
+                                                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                                                    <img src={capturedImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    <div style={{ position: 'absolute', bottom: '15px', left: '0', right: '0', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                                                        <button type="button" onClick={startCamera} style={{ padding: '8px 15px', borderRadius: 'var(--radius-full)', background: 'rgba(255,255,255,0.9)', color: 'var(--gray-800)', border: 'none', fontWeight: 600, cursor: 'pointer' }}>
+                                                            🔄 Refazer
+                                                        </button>
+                                                        <button type="button" onClick={handleRemovePhoto} style={{ padding: '8px 15px', borderRadius: 'var(--radius-full)', background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>
+                                                            🗑️ Remover
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button type="button" onClick={startCamera} className="btn-camera-start" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
+                                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                                    </svg>
+                                                    <span>Clique para tirar foto</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                        {cameraError && <p style={{ color: 'var(--error-500)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--spacing-2)' }}>⚠️ {cameraError}</p>}
+                                        <canvas ref={canvasRef} style={{ display: 'none' }} />
+                                    </div>
                                     <div className="form-group">
                                         <label className="form-label">Nome Completo *</label>
                                         <input
@@ -891,6 +1134,52 @@ export default function Alunos() {
                             </div>
                             <form onSubmit={handleEdit}>
                                 <div className="modal-body">
+                                    {/* Camera Section */}
+                                    <div className="form-group" style={{ marginBottom: 'var(--spacing-4)' }}>
+                                        <label className="form-label">Foto do Aluno</label>
+                                        <div className="camera-container" style={{ 
+                                            width: '100%', 
+                                            aspectRatio: '1', 
+                                            maxHeight: '280px',
+                                            background: 'var(--gray-900)', 
+                                            borderRadius: 'var(--radius-lg)', 
+                                            overflow: 'hidden',
+                                            position: 'relative',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            {isCameraOpen ? (
+                                                <>
+                                                    <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    <button type="button" onClick={takePhoto} style={{ position: 'absolute', bottom: '15px', padding: '10px 20px', borderRadius: 'var(--radius-full)', background: 'var(--primary-500)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+                                                        📸 Capturar agora
+                                                    </button>
+                                                </>
+                                            ) : capturedImage ? (
+                                                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                                                    <img src={capturedImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    <div style={{ position: 'absolute', bottom: '15px', left: '0', right: '0', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                                                        <button type="button" onClick={startCamera} style={{ padding: '8px 15px', borderRadius: 'var(--radius-full)', background: 'rgba(255,255,255,0.9)', color: 'var(--gray-800)', border: 'none', fontWeight: 600, cursor: 'pointer' }}>
+                                                            🔄 Refazer
+                                                        </button>
+                                                        <button type="button" onClick={handleRemovePhoto} style={{ padding: '8px 15px', borderRadius: 'var(--radius-full)', background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>
+                                                            🗑️ Remover
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button type="button" onClick={startCamera} className="btn-camera-start" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
+                                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                                    </svg>
+                                                    <span>Clique para tirar foto</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                        {cameraError && <p style={{ color: 'var(--error-500)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--spacing-2)' }}>⚠️ {cameraError}</p>}
+                                        <canvas ref={canvasRef} style={{ display: 'none' }} />
+                                    </div>
                                     <div className="form-group">
                                         <label className="form-label">Nome Completo *</label>
                                         <input

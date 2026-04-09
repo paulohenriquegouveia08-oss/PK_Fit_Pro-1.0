@@ -15,6 +15,7 @@ export interface CreateMemberData {
     role: 'PROFESSOR' | 'ALUNO';
     academy_id: string;
     professor_id?: string; // For students, the assigned professor
+    photo_url?: string;
 }
 
 // Get the current user's academy ID from persistent storage
@@ -169,6 +170,14 @@ export async function createAcademyMember(data: CreateMemberData): Promise<ApiRe
         // Wait a brief moment for PostgreSQL Trigger (on_auth_user_created) to copy to public.users
         await new Promise(resolve => setTimeout(resolve, 300));
 
+        // Update the photo_url right after creation if provided
+        if (data.photo_url) {
+            await supabase
+                .from('users')
+                .update({ photo_url: data.photo_url })
+                .eq('id', authId);
+        }
+
         // 1.1 Fetch the generated public user ID to proceed with relationships
         const { data: user, error: userError } = await supabase
             .from('users')
@@ -227,12 +236,11 @@ export async function createAcademyMember(data: CreateMemberData): Promise<ApiRe
             success: true,
             data: user as User
         };
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error creating member:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
         return {
             success: false,
-            error: `Erro ao criar membro: ${errorMessage}`
+            error: `Erro ao criar membro: ${error.message || 'Erro desconhecido'}`
         };
     }
 }
@@ -240,7 +248,7 @@ export async function createAcademyMember(data: CreateMemberData): Promise<ApiRe
 // Update academy member
 export async function updateAcademyMember(
     id: string,
-    updates: Partial<Pick<User, 'name' | 'email' | 'phone' | 'is_active'>>,
+    updates: Partial<Pick<User, 'name' | 'email' | 'phone' | 'is_active'> & { photo_url?: string | null }>,
     newProfessorId?: string
 ): Promise<ApiResponse<User>> {
     try {
@@ -276,11 +284,11 @@ export async function updateAcademyMember(
             success: true,
             data: data as User
         };
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error updating member:', error);
         return {
             success: false,
-            error: 'Erro ao atualizar membro'
+            error: `Erro ao atualizar membro: ${error.message || 'Erro desconhecido'}`
         };
     }
 }

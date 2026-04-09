@@ -264,6 +264,59 @@ export class TopDataAdapter implements TurnstileAdapter {
     }
 
     // ==========================================
+    // SINCRONIZAÇÃO DE USUÁRIOS E FACES
+    // ==========================================
+
+    /**
+     * Gera um ID numérico a partir da UUID do Supabase.
+     */
+    private generateNumericId(uuid: string): number {
+        let hash = 0;
+        for (let i = 0; i < uuid.length; i++) {
+            const char = uuid.charCodeAt(i);
+            hash = (hash << 5) - hash + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash);
+    }
+
+    async syncUserFace(userId: string, name: string, _photoUrl: string): Promise<void> {
+        const numericId = this.generateNumericId(userId);
+        logger.info(`[Top Data] Sincronizando usuário: ${name} (ID: ${numericId})`);
+
+        try {
+            // Em TopData TCP (EasyInner), o cadastro de usuário é feito via pacotes de configuração de lista
+            // Por limitação do protocolo binário direto, sincronizamos o ID do usuário.
+            // O reconhecimento facial binário (Inner Face) geralmente requer o middleware da TopData.
+            
+            // Simulação de comando de cadastro no hardware (ID do cartão = Numeric ID)
+            const packet = Buffer.from([0x02, 0x00, 0x0A, 0x08, ...Buffer.from(String(numericId).padStart(10, '0')), 0x03]);
+            this.sendCommand(packet);
+
+            logger.info(`[Top Data] ✅ Usuário ${name} enviado para a lista do hardware.`);
+            if (_photoUrl) {
+                logger.warn(`[Top Data] ⚠️ Nota: O envio de fotos faciais para TopData requer o middleware InnerFace ou driver específico de imagem binária.`);
+            }
+        } catch (error) {
+            logger.error(`[Top Data] ❌ Erro ao sincronizar usuário: ${error}`);
+        }
+    }
+
+    async removeUser(userId: string): Promise<void> {
+        const numericId = this.generateNumericId(userId);
+        logger.info(`[Top Data] Removendo usuário ID: ${numericId}`);
+
+        try {
+            // Comando para remover da lista branca (exemplo simplificado)
+            const packet = Buffer.from([0x02, 0x00, 0x0A, 0x09, ...Buffer.from(String(numericId).padStart(10, '0')), 0x03]);
+            this.sendCommand(packet);
+            logger.info(`[Top Data] ✅ Comando de remoção enviado.`);
+        } catch (error) {
+            logger.error(`[Top Data] ❌ Erro ao remover usuário: ${error}`);
+        }
+    }
+
+    // ==========================================
     // STATUS
     // ==========================================
 

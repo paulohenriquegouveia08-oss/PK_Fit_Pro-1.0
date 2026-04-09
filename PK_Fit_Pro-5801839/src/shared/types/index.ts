@@ -19,6 +19,7 @@ export interface User {
   role: UserRole;
   is_active: boolean;
   academy_id?: string; // Added for session storage of academy info
+  photo_url?: string;
   created_at: string;
   updated_at: string;
 }

@@ -217,6 +217,90 @@ export class ControlIdAdapter implements TurnstileAdapter {
     }
 
     // ==========================================
+    // SINCRONIZAÇÃO DE USUÁRIOS E FACES
+    // ==========================================
+
+    /**
+     * Gera um ID numérico a partir da UUID do Supabase.
+     * Necessário pois a Control ID exige IDs numéricos (int).
+     */
+    private generateNumericId(uuid: string): number {
+        let hash = 0;
+        for (let i = 0; i < uuid.length; i++) {
+            const char = uuid.charCodeAt(i);
+            hash = (hash << 5) - hash + char;
+            hash = hash & hash; // Convert to 32bit int
+        }
+        return Math.abs(hash);
+    }
+
+    /**
+     * Baixa uma imagem de uma URL e converte para Base64.
+     */
+    private async downloadImageAsBase64(url: string): Promise<string> {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Falha ao baixar imagem: ${response.statusText}`);
+        const buffer = await response.arrayBuffer();
+        return Buffer.from(buffer).toString('base64');
+    }
+
+    async syncUserFace(userId: string, name: string, photoUrl: string): Promise<void> {
+        const numericId = this.generateNumericId(userId);
+        logger.info(`[Control ID] Sincronizando usuário: ${name} (ID: ${numericId})`);
+
+        try {
+            // 1. Criar ou atualizar o usuário na iDFace
+            // Usamos upsert: true se disponível, ou lidamos com erro se já existir
+            await this.request('/create_objects.fcgi', {
+                object: 'users',
+                values: [
+                    {
+                        id: numericId,
+                        name: name,
+                        registration: String(numericId)
+                    }
+                ]
+            });
+
+            // 2. Se houver foto, baixar e enviar o rosto
+            if (photoUrl) {
+                logger.debug(`[Control ID] Baixando e enviando face para ID ${numericId}...`);
+                const base64Image = await this.downloadImageAsBase64(photoUrl);
+
+                // Cadastrar a face
+                // Nota: O endpoint set_user_face.fcgi facilita esse processo na iDFace
+                await this.request('/set_user_face.fcgi', {
+                    user_id: numericId,
+                    face_image: base64Image
+                });
+            }
+
+            logger.info(`[Control ID] ✅ Usuário ${name} sincronizado com sucesso.`);
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            logger.error(`[Control ID] ❌ Erro ao sincronizar usuário ${name}: ${msg}`);
+            throw error;
+        }
+    }
+
+    async removeUser(userId: string): Promise<void> {
+        const numericId = this.generateNumericId(userId);
+        logger.info(`[Control ID] Removendo usuário ID: ${numericId}`);
+
+        try {
+            await this.request('/destroy_objects.fcgi', {
+                object: 'users',
+                where: {
+                    users: { id: numericId }
+                }
+            });
+            logger.info(`[Control ID] ✅ Usuário removido do hardware.`);
+        } catch (error) {
+            logger.error(`[Control ID] ❌ Erro ao remover usuário: ${error}`);
+        }
+    }
+
+    // ==========================================
     // INFO
     // ==========================================
 

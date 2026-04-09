@@ -97,6 +97,9 @@ app.whenReady().then(() => {
       await processPendingCommands(config);
       startListener(config, currentAdapter);
       
+      const { syncAcademyMembers } = await import('./supabase/userSync');
+      syncAcademyMembers(config, currentAdapter); // Inicia sync de usuários em segundo plano
+      
       const controller = new AccessController(currentAdapter, config);
       controller.start();
 

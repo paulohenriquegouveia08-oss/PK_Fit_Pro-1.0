@@ -396,6 +396,74 @@ export class HenryAdapter implements TurnstileAdapter {
     }
 
     // ==========================================
+    // SINCRONIZAÇÃO DE USUÁRIOS E FACES
+    // ==========================================
+
+    /**
+     * Gera um ID numérico a partir da UUID do Supabase.
+     */
+    private generateNumericId(uuid: string): number {
+        let hash = 0;
+        for (let i = 0; i < uuid.length; i++) {
+            const char = uuid.charCodeAt(i);
+            hash = (hash << 5) - hash + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash);
+    }
+
+    private async downloadImageAsBase64(url: string): Promise<string> {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Falha ao baixar imagem: ${response.statusText}`);
+        const buffer = await response.arrayBuffer();
+        return Buffer.from(buffer).toString('base64');
+    }
+
+    async syncUserFace(userId: string, name: string, photoUrl: string): Promise<void> {
+        const numericId = this.generateNumericId(userId);
+        logger.info(`[Henry] Sincronizando usuário: ${name} (ID: ${numericId})`);
+
+        try {
+            // 1. Criar ou atualizar o usuário na Henry
+            await this.httpRequest('/api/users', 'POST', {
+                id: numericId,
+                name: name,
+                card: String(numericId),
+                role: 'user'
+            });
+
+            // 2. Se houver foto, enviar a face
+            if (photoUrl) {
+                logger.debug(`[Henry] Enviando face para ID ${numericId}...`);
+                const base64Image = await this.downloadImageAsBase64(photoUrl);
+
+                await this.httpRequest('/api/faces', 'POST', {
+                    user_id: numericId,
+                    image: base64Image
+                });
+            }
+
+            logger.info(`[Henry] ✅ Usuário ${name} sincronizado com sucesso.`);
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            logger.error(`[Henry] ❌ Erro ao sincronizar usuário ${name}: ${msg}`);
+            throw error;
+        }
+    }
+
+    async removeUser(userId: string): Promise<void> {
+        const numericId = this.generateNumericId(userId);
+        logger.info(`[Henry] Removendo usuário ID: ${numericId}`);
+
+        try {
+            await this.httpRequest(`/api/users/${numericId}`, 'DELETE');
+            logger.info(`[Henry] ✅ Usuário removido do hardware.`);
+        } catch (error) {
+            logger.error(`[Henry] ❌ Erro ao remover usuário: ${error}`);
+        }
+    }
+
+    // ==========================================
     // STATUS
     // ==========================================
 

@@ -18,7 +18,13 @@ import {
     type AccessLog,
     type TurnstileBrand
 } from '../../../shared/services/turnstile.service';
+import { supabase } from '../../../shared/services/supabase';
+import { getUserById } from '../../../shared/services/user.service';
 import '../styles/controle-acesso.css';
+
+interface ExtendedAccessLog extends AccessLog {
+    photo_url?: string;
+}
 
 type TabType = 'dashboard' | 'config' | 'logs';
 
@@ -61,6 +67,7 @@ export default function ControleAcesso() {
     const [logDateFrom, setLogDateFrom] = useState('');
     const [logDateTo, setLogDateTo] = useState('');
     const [logsLoading, setLogsLoading] = useState(false);
+    const [realtimeLogs, setRealtimeLogs] = useState<ExtendedAccessLog[]>([]);
 
     // Stats
     const [occupancy, setOccupancy] = useState(0);
@@ -144,6 +151,57 @@ export default function ControleAcesso() {
             loadLogs(logsPage);
         }
     }, [activeTab, logsPage, logFilter, logDateFrom, logDateTo]);
+
+    // Som de notificação
+    const playNotificationSound = () => {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play().catch(e => console.error('Erro ao tocar som:', e));
+    };
+
+    // Realtime subscription
+    useEffect(() => {
+        const academyId = getCurrentAcademyId();
+        if (!academyId) return;
+
+        const channel = supabase
+            .channel('realtime_access_logs')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'access_logs',
+                    filter: `academy_id=eq.${academyId}`
+                },
+                async (payload) => {
+                    const newLog = payload.new as AccessLog;
+                    
+                    // Buscar foto do usuário
+                    let photoUrl = undefined;
+                    if (newLog.user_id) {
+                        const userRes = await getUserById(newLog.user_id);
+                        if (userRes.success) photoUrl = userRes.data?.photo_url;
+                    }
+
+                    setRealtimeLogs(prev => [{ ...newLog, photo_url: photoUrl }, ...prev].slice(0, 10));
+                    
+                    // Tocar som se for acesso permitido
+                    if (newLog.access_granted) {
+                        playNotificationSound();
+                    }
+
+                    // Se estiver na aba de logs, recarregar a primeira página para manter sincronizado com o histórico real
+                    if (activeTab === 'logs' && logsPage === 0) {
+                        loadLogs(0);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [activeTab, logsPage]);
 
     // ==========================================
     // CONFIG CRUD
@@ -659,6 +717,85 @@ export default function ControleAcesso() {
                            ========================================== */}
                         {activeTab === 'logs' && (
                             <div className="ca-logs-section">
+                                <div style={{ marginBottom: 'var(--spacing-6)' }}>
+                                    <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--gray-800)', marginBottom: 'var(--spacing-3)' }}>
+                                        📋 Histórico e Monitoramento
+                                    </h3>
+                                    
+                                    {/* Monitoramento em Tempo Real */}
+                                    <div className="ca-realtime-monitor" style={{ 
+                                        marginBottom: 'var(--spacing-6)',
+                                        background: 'var(--gray-900)',
+                                        borderRadius: 'var(--radius-lg)',
+                                        padding: 'var(--spacing-4)',
+                                        color: '#fff',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--spacing-4)' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <div className="live-indicator-dot" style={{ width: '10px', height: '10px', background: '#4ade80', borderRadius: '50%', boxShadow: '0 0 10px #4ade80' }}></div>
+                                                <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', letterSpacing: '1px' }}>MONITORAMENTO AO VIVO</span>
+                                            </div>
+                                            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--gray-400)' }}>Últimos 10 acessos</span>
+                                        </div>
+
+                                        {realtimeLogs.length === 0 ? (
+                                            <div style={{ textAlign: 'center', padding: 'var(--spacing-6)', color: 'var(--gray-500)', border: '1px dashed var(--gray-700)', borderRadius: 'var(--radius-md)' }}>
+                                                <p style={{ fontSize: 'var(--font-size-sm)' }}>Aguardando interações com a catraca...</p>
+                                            </div>
+                                        ) : (
+                                            <div className="ca-realtime-list" style={{ 
+                                                display: 'grid', 
+                                                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+                                                gap: 'var(--spacing-3)' 
+                                            }}>
+                                                {realtimeLogs.map((log) => (
+                                                    <div key={log.id} style={{ 
+                                                        background: 'var(--gray-800)',
+                                                        padding: 'var(--spacing-3)',
+                                                        borderRadius: 'var(--radius-md)',
+                                                        display: 'flex',
+                                                        gap: 'var(--spacing-3)',
+                                                        alignItems: 'center',
+                                                        borderLeft: `4px solid ${log.access_granted ? '#10b981' : '#ef4444'}`,
+                                                        animation: 'fadeInSlide 0.3s ease-out'
+                                                    }}>
+                                                        <div style={{ width: '45px', height: '45px', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--gray-700)', flexShrink: 0 }}>
+                                                            {log.photo_url ? (
+                                                                <img src={log.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                            ) : (
+                                                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: 'var(--gray-400)' }}>
+                                                                    {log.user_name ? log.user_name.substring(0, 1) : '?'}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ minWidth: 0, flex: 1 }}>
+                                                            <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {log.user_name || 'Desconhecido'}
+                                                            </div>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                                                                <span style={{ 
+                                                                    fontSize: '10px', 
+                                                                    padding: '1px 6px', 
+                                                                    borderRadius: '4px',
+                                                                    background: log.access_granted ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                                                    color: log.access_granted ? '#34d399' : '#f87171',
+                                                                    fontWeight: 600
+                                                                }}>
+                                                                    {log.access_granted ? 'LIBERADO' : 'NEGADO'}
+                                                                </span>
+                                                                <span style={{ fontSize: '10px', color: 'var(--gray-400)' }}>
+                                                                    {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
                                 {/* Filters */}
                                 <div className="ca-logs-filters">
                                     <input

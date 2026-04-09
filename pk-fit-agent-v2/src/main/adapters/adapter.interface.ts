@@ -59,6 +59,16 @@ export interface TurnstileAdapter {
     getStatus(): Promise<'CONNECTED' | 'DISCONNECTED' | 'ERROR'>;
 
     /**
+     * Sincroniza um usuário e seu rosto/facial com o hardware.
+     */
+    syncUserFace?(userId: string, name: string, photoUrl: string): Promise<void>;
+
+    /**
+     * Remove um usuário do hardware.
+     */
+    removeUser?(userId: string): Promise<void>;
+
+    /**
      * (Opcional) Retorna contagem de giros da catraca.
      */
     getTurnCount?(): Promise<{ in: number; out: number; total: number }>;

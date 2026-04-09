@@ -19,12 +19,14 @@ interface AccessCommand {
 }
 
 let channel: ReturnType<ReturnType<typeof getSupabase>['channel']> | null = null;
+let currentConfig: AgentConfig | null = null;
 
 /**
  * Inicia o listener que escuta novos comandos via Supabase Realtime
  */
 export function startListener(config: AgentConfig, adapter: TurnstileAdapter): void {
     const supabase = getSupabase();
+    currentConfig = config;
 
     logger.info('Realtime listener iniciado — escutando comandos do painel web...');
 
@@ -107,7 +109,13 @@ async function processCommand(
 
             case 'SYNC_USERS':
                 logger.info('🔄 Comando SYNC_USERS — sincronização iniciada');
-                // TODO: Implementar sync de usuários para hardware com storage local
+                const { syncAcademyMembers } = await import('./userSync');
+                if (currentConfig) {
+                    await syncAcademyMembers(currentConfig, adapter);
+                    logger.info('✅ Sincronização de usuários finalizada via comando web');
+                } else {
+                    logger.error('❌ Não foi possível realizar sync: Configuração não encontrada');
+                }
                 break;
 
             case 'REBOOT':

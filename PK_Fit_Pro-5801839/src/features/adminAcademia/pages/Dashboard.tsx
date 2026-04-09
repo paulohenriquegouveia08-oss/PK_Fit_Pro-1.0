@@ -11,24 +11,30 @@ export default function Dashboard() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const loadData = async () => {
-            const academyId = getCurrentAcademyId();
-            if (academyId) {
-                const [profsResult, studentsResult] = await Promise.all([
-                    getAcademyMembers(academyId, 'PROFESSOR'),
-                    getAcademyMembers(academyId, 'ALUNO')
-                ]);
-
-                if (profsResult.success && profsResult.data) {
-                    setProfessors(profsResult.data);
-                }
-                if (studentsResult.success && studentsResult.data) {
-                    setStudentCount(studentsResult.data.length);
-                }
+        const loadInitialData = async () => {
+            const acaId = getCurrentAcademyId();
+            if (!acaId) {
+                setIsLoading(false);
+                return;
             }
+
+            // Carregar contadores e professores
+            const [profsResult, studentsResult] = await Promise.all([
+                getAcademyMembers(acaId, 'PROFESSOR'),
+                getAcademyMembers(acaId, 'ALUNO')
+            ]);
+
+            if (profsResult.success && profsResult.data) {
+                setProfessors(profsResult.data);
+            }
+            if (studentsResult.success && studentsResult.data) {
+                setStudentCount(studentsResult.data.length);
+            }
+            
             setIsLoading(false);
         };
-        loadData();
+
+        loadInitialData();
     }, []);
 
     return (
@@ -114,12 +120,12 @@ export default function Dashboard() {
                         </div>
                     </div>
                 )}
-                {/* Change Password */}
+
                 <div className="dashboard-section">
                     <div className="section-header">
                         <h2 className="section-title">Configurações</h2>
                     </div>
-                    <div style={{ maxWidth: '500px' }}>
+                    <div style={{ maxWidth: '400px' }}>
                         <ChangePassword />
                     </div>
                 </div>

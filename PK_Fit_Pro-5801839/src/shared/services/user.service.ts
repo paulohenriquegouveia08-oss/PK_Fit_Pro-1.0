@@ -227,3 +227,27 @@ export async function deleteUser(id: string): Promise<ApiResponse<void>> {
         };
     }
 }
+
+// Get user by ID
+export async function getUserById(id: string): Promise<ApiResponse<User>> {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) throw error;
+
+        return {
+            success: true,
+            data: data as User
+        };
+    } catch (error) {
+        console.error('Error fetching user by ID:', error);
+        return {
+            success: false,
+            error: 'Erro ao buscar usuário'
+        };
+    }
+}

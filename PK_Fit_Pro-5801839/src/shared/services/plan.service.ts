@@ -62,7 +62,7 @@ export async function createPlan(data: CreatePlanData): Promise<ApiResponse<Plan
         if (!data.name || data.name.trim() === '') {
             return { success: false, error: 'Nome do plano é obrigatório' };
         }
-        if (data.duration_in_months < 0) {
+        if (data.duration_in_months < -1) {
             return { success: false, error: 'Duração inválida' };
         }
         if (data.has_time_restriction) {
@@ -119,7 +119,7 @@ export async function updatePlan(
 ): Promise<ApiResponse<Plan>> {
     try {
         // Validações
-        if (updates.duration_in_months !== undefined && updates.duration_in_months < 0) {
+        if (updates.duration_in_months !== undefined && updates.duration_in_months < -1) {
             return { success: false, error: 'Duração inválida' };
         }
         if (updates.has_time_restriction === true) {
@@ -205,8 +205,15 @@ export async function deletePlan(id: string): Promise<ApiResponse<void>> {
 
 // Calcular data de término baseado na duração
 // duration_in_months = 0 significa semanal (7 dias)
+// duration_in_months = -1 significa diária (1 dia)
 export function calculateEndDate(startDate: Date, durationInMonths: number): Date {
     const endDate = new Date(startDate);
+
+    // Diária: -1 = 1 dia
+    if (durationInMonths === -1) {
+        endDate.setDate(endDate.getDate() + 1);
+        return endDate;
+    }
 
     // Semanal: 0 = 7 dias
     if (durationInMonths === 0) {

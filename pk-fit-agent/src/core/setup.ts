@@ -91,21 +91,13 @@ export async function runSetupWizard(): Promise<LocalConfig> {
     console.log('     (Controle de Acesso → Catracas → Parear Agent)');
     console.log('');
 
-    // 1. URL do Supabase
-    const supabaseUrl = await prompt('  📡 URL do Supabase: ');
-    if (!supabaseUrl) {
-        throw new Error('URL do Supabase é obrigatória');
-    }
+    // URL e Key agora são embutidas (anon key)
+    const supabaseUrl = 'https://fuovtooenanzcrsgpsxq.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1b3Z0b29lbmFuemNyc2dwc3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3NDE4NzMsImV4cCI6MjA4MTMxNzg3M30._rf15v-_Qw__kmX2bqV_JC2xQPVrFYOfdfisYmyAses';
 
-    // 2. Service Key
-    const supabaseKey = await prompt('  🔑 Service Role Key: ');
-    if (!supabaseKey) {
-        throw new Error('Service Key é obrigatória');
-    }
-
-    // 3. Código de pareamento
+    // 1. Código de pareamento
     console.log('');
-    const code = await prompt('  🔗 Código de pareamento (PKF-XXXX-XXXX): ');
+    const code = await prompt('  🔗 Código de pareamento de 6 dígitos: ');
     if (!code) {
         throw new Error('Código de pareamento é obrigatório');
     }

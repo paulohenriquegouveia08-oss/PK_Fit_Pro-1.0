@@ -290,15 +290,6 @@ export default function Evolucao() {
         <AlunoLayout title="Evolução" menuItems={menuItems}>
             <div style={{ paddingBottom: 'var(--spacing-6)', animation: 'fadeIn 0.4s ease-out' }}>
 
-                {/* Header & Filter */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-4)' }}>
-                    <div>
-                        <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, margin: 0, background: 'linear-gradient(to right, var(--primary-500) 0%, rgb(168, 85, 247) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                            Sua Evolução
-                        </h2>
-                        <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>Acompanhamento de resultados</p>
-                    </div>
-                </div>
 
                 {/* Period Selector (Horizontal Scroll) */}
                 <div style={{ display: 'flex', gap: 'var(--spacing-2)', overflowX: 'auto', paddingBottom: 'var(--spacing-2)', marginBottom: 'var(--spacing-3)', scrollbarWidth: 'none' }}>
@@ -463,7 +454,7 @@ export default function Evolucao() {
                         {/* We show the last 28 days to make 4 perfect weeks (7 columns) */}
                         {freqData.slice(-28).map((day, i) => {
                             const isToday = day.date === new Date().toISOString().split('T')[0];
-                            let bgColor = COLORS.bgSecondary;
+                            let bgColor = 'rgba(148, 163, 184, 0.25)'; // Light gray for empty squares
                             if (day.trained) {
                                 // Simulate intensity colors if we have multiple sessions, otherwise default green
                                 bgColor = day.session_count > 1 ? 'rgb(21, 128, 61)' : COLORS.success;
@@ -477,8 +468,8 @@ export default function Evolucao() {
                                         aspectRatio: '1/1',
                                         borderRadius: 4,
                                         backgroundColor: bgColor,
-                                        border: isToday ? `2px solid var(--primary-500)` : 'none',
-                                        opacity: day.trained ? 1 : 0.6
+                                        border: isToday ? `2px solid var(--primary-500)` : (day.trained ? 'none' : '1px solid rgba(148, 163, 184, 0.1)'),
+                                        opacity: day.trained ? 1 : 1
                                     }}
                                 />
                             );

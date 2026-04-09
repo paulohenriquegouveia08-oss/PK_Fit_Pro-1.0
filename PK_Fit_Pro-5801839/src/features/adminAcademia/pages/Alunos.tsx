@@ -69,8 +69,11 @@ export default function Alunos() {
     const [showModal, setShowModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showRenewModal, setShowRenewModal] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState<StudentWithPlan | null>(null);
+    const [renewStudent, setRenewStudent] = useState<StudentWithPlan | null>(null);
     const [formData, setFormData] = useState<FormData>(initialFormData);
+    const [renewFormData, setRenewFormData] = useState<FormData>(initialFormData);
     const [editFormData, setEditFormData] = useState<FormData>(initialFormData);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -220,6 +223,70 @@ export default function Alunos() {
         }
 
         setIsSubmitting(false);
+    };
+
+    // Handle renew student
+    const handleRenew = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!renewStudent || !academyId) return;
+        if (!renewFormData.plan_id) {
+            setMessage({ type: 'error', text: 'Selecione um plano para renovação.' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        setMessage(null);
+
+        if (renewFormData.professor_id !== renewStudent.professor_id) {
+            await updateAcademyMember(
+                renewStudent.id,
+                { name: renewStudent.name, email: renewStudent.email }, // required interface fields
+                renewFormData.professor_id || undefined
+            );
+        }
+
+        const planResult = await createStudentPlan(renewStudent.id, renewFormData.plan_id, academyId);
+
+        if (planResult.success) {
+            if (renewFormData.payment_method !== 'pagar_depois' && selectedPlanPreview?.price) {
+                const payResult = await markStudentPlanAsPaid(
+                    renewStudent.id,
+                    renewFormData.plan_id,
+                    academyId,
+                    selectedPlanPreview.price,
+                    renewFormData.payment_method
+                );
+                if (payResult.success) {
+                    setMessage({ type: 'success', text: 'Matrícula renovada e pagamento registrado!' });
+                } else {
+                    setMessage({ type: 'success', text: 'Matrícula renovada, mas erro no pagamento: ' + (payResult.error || '') });
+                }
+            } else {
+                setMessage({ type: 'success', text: 'Matrícula renovada com sucesso (Pendente).' });
+            }
+            setShowRenewModal(false);
+            setRenewStudent(null);
+            setSelectedPlanPreview(null);
+            loadData();
+        } else {
+            setMessage({ type: 'error', text: planResult.error || 'Erro ao renovar matrícula' });
+        }
+
+        setIsSubmitting(false);
+    };
+
+    const openRenewModal = (student: StudentWithPlan) => {
+        setRenewStudent(student);
+        setRenewFormData({
+            name: student.name,
+            email: student.email,
+            phone: student.phone || '',
+            professor_id: student.professor_id || '',
+            plan_id: '',
+            payment_method: 'pagar_depois'
+        });
+        setSelectedPlanPreview(null);
+        setShowRenewModal(true);
     };
 
     // Handle edit student
@@ -399,7 +466,7 @@ export default function Alunos() {
                     <div>
                         <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>⏱ Duração</div>
                         <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
-                            {selectedPlanPreview.duration_in_months} {selectedPlanPreview.duration_in_months === 1 ? 'mês' : 'meses'}
+                            {selectedPlanPreview.duration_in_months === -1 ? 'Diária' : selectedPlanPreview.duration_in_months === 0 ? 'Semanal' : `${selectedPlanPreview.duration_in_months} ${selectedPlanPreview.duration_in_months === 1 ? 'mês' : 'meses'}`}
                         </div>
                     </div>
                 </div>
@@ -583,6 +650,22 @@ export default function Alunos() {
                                                     </button>
                                                 )}
                                             </div>
+                                            {isPlanExpired(aluno.plan_end_date || '') && (
+                                                <div style={{ marginTop: 'var(--spacing-2)' }}>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openRenewModal(aluno);
+                                                        }}
+                                                        style={{ padding: '6px 12px', fontSize: 'var(--font-size-xs)', fontWeight: 600, border: 'none', borderRadius: 'var(--radius-sm)', background: 'var(--primary-500)', color: '#fff', cursor: 'pointer', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+                                                        </svg>
+                                                        Renovar Matrícula
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
                                         <div style={{
@@ -707,7 +790,7 @@ export default function Alunos() {
                                             <option value="">Selecione um plano</option>
                                             {plans.map(plan => (
                                                 <option key={plan.id} value={plan.id}>
-                                                    {plan.name} — {formatPrice(plan.price)} — {plan.duration_in_months} {plan.duration_in_months === 1 ? 'mês' : 'meses'}
+                                                    {plan.name} — {formatPrice(plan.price)} — {plan.duration_in_months === -1 ? 'Diária' : plan.duration_in_months === 0 ? 'Semanal' : `${plan.duration_in_months} ${plan.duration_in_months === 1 ? 'mês' : 'meses'}`}
                                                 </option>
                                             ))}
                                         </select>
@@ -949,6 +1032,114 @@ export default function Alunos() {
                                     Excluir
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal Renovar Matrícula */}
+                {showRenewModal && renewStudent && (
+                    <div className="modal-overlay" onClick={() => { setShowRenewModal(false); setSelectedPlanPreview(null); }}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title">Renovar Matrícula</h3>
+                                <button className="modal-close" onClick={() => { setShowRenewModal(false); setSelectedPlanPreview(null); }}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <form onSubmit={handleRenew}>
+                                <div className="modal-body">
+                                    <div style={{ padding: 'var(--spacing-3)', background: 'var(--background-secondary)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--spacing-3)' }}>
+                                        <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-1)' }}>👤 {renewFormData.name}</div>
+                                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>{renewFormData.email} • {renewFormData.phone || 'Sem telefone'}</div>
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label className="form-label">Professor Responsável (Opcional)</label>
+                                        <select
+                                            className="form-input"
+                                            value={renewFormData.professor_id}
+                                            onChange={(e) => setRenewFormData(prev => ({ ...prev, professor_id: e.target.value }))}
+                                        >
+                                            <option value="">Sem professor</option>
+                                            {professors.map(prof => (
+                                                <option key={prof.id} value={prof.id}>{prof.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label className="form-label">Novo Plano *</label>
+                                        <select
+                                            className="form-input"
+                                            value={renewFormData.plan_id}
+                                            onChange={(e) => {
+                                                setRenewFormData(prev => ({ ...prev, plan_id: e.target.value }));
+                                                const plan = plans.find(p => p.id === e.target.value);
+                                                setSelectedPlanPreview(plan || null);
+                                            }}
+                                            required
+                                            style={{ borderColor: !renewFormData.plan_id ? undefined : 'var(--primary-500)' }}
+                                        >
+                                            <option value="">Selecione um plano</option>
+                                            {plans.map(plan => (
+                                                <option key={plan.id} value={plan.id}>
+                                                    {plan.name} — {formatPrice(plan.price)} — {plan.duration_in_months} {plan.duration_in_months === 1 ? 'mês' : 'meses'}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {renderPlanPreview()}
+
+                                    {renewFormData.plan_id && selectedPlanPreview && (
+                                        <div className="form-group" style={{ marginTop: 'var(--spacing-4)', paddingTop: 'var(--spacing-4)', borderTop: '1px solid var(--border-color)' }}>
+                                            <label className="form-label">Pagamento da Renovação (Opcional)</label>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 'var(--spacing-2)' }}>
+                                                {[
+                                                    { id: 'pagar_depois', label: 'Pagar Depois', icon: '⏳' },
+                                                    { id: 'pix', label: 'PIX', icon: '📱' },
+                                                    { id: 'credito', label: 'Crédito', icon: '💳' },
+                                                    { id: 'debito', label: 'Débito', icon: '💳' },
+                                                    { id: 'dinheiro', label: 'Dinheiro', icon: '💵' }
+                                                ].map(method => (
+                                                    <div
+                                                        key={method.id}
+                                                        onClick={() => setRenewFormData(prev => ({ ...prev, payment_method: method.id as any }))}
+                                                        style={{
+                                                            padding: 'var(--spacing-2)',
+                                                            border: `1px solid ${renewFormData.payment_method === method.id ? (method.id === 'pagar_depois' ? 'var(--gray-500)' : 'var(--success-500)') : 'var(--border-color)'}`,
+                                                            borderRadius: 'var(--radius-md)',
+                                                            cursor: 'pointer',
+                                                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--spacing-1)',
+                                                            background: renewFormData.payment_method === method.id
+                                                                ? (method.id === 'pagar_depois' ? 'var(--gray-100)' : 'var(--success-50)')
+                                                                : 'var(--background-primary)',
+                                                            textAlign: 'center'
+                                                        }}
+                                                    >
+                                                        <span style={{ fontSize: '1.2rem' }}>{method.icon}</span>
+                                                        <span style={{
+                                                            fontSize: 'var(--font-size-xs)',
+                                                            fontWeight: renewFormData.payment_method === method.id ? 600 : 400,
+                                                            color: renewFormData.payment_method === method.id
+                                                                ? (method.id === 'pagar_depois' ? 'var(--gray-700)' : 'var(--success-700)')
+                                                                : 'var(--text-primary)'
+                                                        }}>
+                                                            {method.label}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="btn-cancel" onClick={() => { setShowRenewModal(false); setSelectedPlanPreview(null); }} disabled={isSubmitting}>Cancelar</button>
+                                    <button type="submit" className="btn-submit" disabled={isSubmitting}>{isSubmitting ? 'Renovando...' : 'Confirmar Renovação'}</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 )}

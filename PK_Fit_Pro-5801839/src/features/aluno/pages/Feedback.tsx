@@ -145,7 +145,7 @@ export default function Feedback() {
     const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
     return (
-        <AlunoLayout title="Feedback" menuItems={menuItems}>
+        <AlunoLayout title="" menuItems={menuItems}> {/*Deixar sem nome*/}
             <div style={{ padding: 0 }}>
                 <div style={{ marginBottom: 'var(--spacing-6)' }}>
                     <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, marginBottom: 'var(--spacing-1)' }}>⭐ Avaliar Professores</h3>

@@ -28,8 +28,6 @@ public class PkFitAgentDesktop extends Application {
     private ConfigParser currentConfig;
 
     // Componentes de setup (pareamento)
-    private TextField supabaseUrlField;
-    private TextField supabaseKeyField;
     private TextField pairingCodeField;
 
     // Painéis alternáveis
@@ -158,14 +156,12 @@ public class PkFitAgentDesktop extends Application {
         setupTitle.setTextFill(Color.web("#00d2ff"));
 
         Label setupDesc = new Label(
-                "Informe as credenciais do Supabase e o código de pareamento\ngerado no painel web (Controle de Acesso → Catracas → Parear Agent).");
+                "Informe o código de 6 dígitos gerado no painel web\n(Controle de Acesso → Catracas → Parear Agent).");
         setupDesc.setFont(Font.font("Segoe UI", 12));
         setupDesc.setTextFill(Color.LIGHTGRAY);
         setupDesc.setWrapText(true);
 
-        supabaseUrlField = createStyledField("URL do Supabase (ex: https://xxx.supabase.co)");
-        supabaseKeyField = createStyledField("Service Role Key");
-        pairingCodeField = createStyledField("Código de Pareamento (PKF-XXXX-XXXX)");
+        pairingCodeField = createStyledField("Código de 6 dígitos (ex: AB1234)");
 
         connectButton = new Button("🔗 Parear e Conectar");
         connectButton.setStyle(
@@ -174,8 +170,6 @@ public class PkFitAgentDesktop extends Application {
         connectButton.setOnAction(e -> handlePairing());
 
         panel.getChildren().addAll(setupTitle, setupDesc,
-                createFieldLabel("📡 URL do Supabase"), supabaseUrlField,
-                createFieldLabel("🔑 Service Role Key"), supabaseKeyField,
                 createFieldLabel("🔗 Código de Pareamento"), pairingCodeField,
                 connectButton);
 
@@ -271,12 +265,12 @@ public class PkFitAgentDesktop extends Application {
      * Pareamento via código: valida credenciais e código, chama RPC, salva config
      */
     private void handlePairing() {
-        String url = supabaseUrlField.getText().trim();
-        String key = supabaseKeyField.getText().trim();
+        String url = "https://fuovtooenanzcrsgpsxq.supabase.co";
+        String key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1b3Z0b29lbmFuemNyc2dwc3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3NDE4NzMsImV4cCI6MjA4MTMxNzg3M30._rf15v-_Qw__kmX2bqV_JC2xQPVrFYOfdfisYmyAses";
         String code = pairingCodeField.getText().trim();
 
-        if (url.isEmpty() || key.isEmpty() || code.isEmpty()) {
-            updateStatus("Erro: Preencha todos os campos.", Color.RED);
+        if (code.isEmpty()) {
+            updateStatus("Erro: Preencha o código de pareamento.", Color.RED);
             return;
         }
 
@@ -395,8 +389,6 @@ public class PkFitAgentDesktop extends Application {
         currentConfig = null;
 
         // Limpar campos
-        supabaseUrlField.clear();
-        supabaseKeyField.clear();
         pairingCodeField.clear();
         logContainer.getChildren().clear();
 

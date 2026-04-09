@@ -195,7 +195,7 @@ export default function MeuTreino() {
     const currentDay = workout.days[activeDay];
 
     return (
-        <AlunoLayout title="Minha Ficha de Treino" menuItems={menuItems}>
+        <AlunoLayout title="" menuItems={menuItems}> {/*Deixar sem nome*/}
             <div className="aluno-dashboard">
                 {/* Workout Update Notification Banner */}
                 {showWorkoutUpdateBanner && (

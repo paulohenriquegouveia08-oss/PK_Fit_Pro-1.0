@@ -34,6 +34,7 @@ const initialFormData: PlanFormData = {
 };
 
 const durationOptions = [
+    { value: '-1', label: 'Diária (1 dia)' },
     { value: '0', label: 'Semanal (1 semana)' },
     { value: '1', label: 'Mensal (1 mês)' },
     { value: '2', label: 'Bimestral (2 meses)' },

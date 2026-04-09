@@ -1259,7 +1259,7 @@ export default function IniciarTreino() {
 
     // ─── SCREEN: SELECTION (default) ──────────────────
     return (
-        <AlunoLayout title="Iniciar Treino" menuItems={menuItems}>
+        <AlunoLayout title="" menuItems={menuItems}> {/*Deixar sem nome*/}
             <div className="pk-workout-container" style={{ maxWidth: 600, margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
                 {/* Header */}
                 <div style={{ marginBottom: 'var(--spacing-5)' }}>

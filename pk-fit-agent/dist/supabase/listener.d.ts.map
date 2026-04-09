@@ -1,1 +1,0 @@
-{"version":3,"file":"listener.d.ts","sourceRoot":"","sources":["../../src/supabase/listener.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,WAAW,EAAE,MAAM,WAAW,CAAC;AAC7C,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,+BAA+B,CAAC;AAqBtE;;GAEG;AACH,wBAAgB,aAAa,CAAC,MAAM,EAAE,WAAW,EAAE,OAAO,EAAE,gBAAgB,GAAG,IAAI,CAuClF;AAED;;GAEG;AACH,wBAAsB,YAAY,IAAI,OAAO,CAAC,IAAI,CAAC,CAOlD"}

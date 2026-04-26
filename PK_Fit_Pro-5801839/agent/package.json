@@ -1,0 +1,19 @@
+{
+    "name": "pkfit-agent",
+    "version": "1.0.0",
+    "description": "PK Fit Pro - Agente de Controle de Catraca",
+    "main": "index.js",
+    "bin": "index.js",
+    "pkg": {
+        "targets": [
+            "node18-win-x64"
+        ],
+        "outputPath": "../public/downloads"
+    },
+    "scripts": {
+        "build": "pkg . --output ../public/downloads/PKFitAgent-Setup.exe"
+    },
+    "dependencies": {
+        "@supabase/supabase-js": "^2.39.0"
+    }
+}

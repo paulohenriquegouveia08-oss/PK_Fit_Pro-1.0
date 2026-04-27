@@ -3,20 +3,20 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
-import { redeemPairingCode, loadLocalConfig, hasLocalConfig, LocalConfig } from './core/setup';
-import { logger } from './core/logger';
-import { configFromLocal } from './config';
-import { createAdapter } from './adapters/adapter.factory';
-import { TurnstileAdapter } from './adapters/adapter.interface';
-import { AccessController } from './core/access-controller';
-import { initSupabase } from './supabase/client';
-import { startHeartbeat, stopHeartbeat, markDisconnected } from './core/heartbeat';
-import { startListener, stopListener } from './supabase/listener';
-import { processPendingCommands } from './supabase/sync';
+import { redeemPairingCode, loadLocalConfig, hasLocalConfig, LocalConfig } from './core/setup'
+import { logger } from './core/logger'
+import { configFromLocal } from './config'
+import { createAdapter } from './adapters/adapter.factory'
+import { TurnstileAdapter } from './adapters/adapter.interface'
+import { AccessController } from './core/access-controller'
+import { initSupabase } from './supabase/client'
+import { startHeartbeat, stopHeartbeat, markDisconnected } from './core/heartbeat'
+import { startListener, stopListener } from './supabase/listener'
+import { processPendingCommands } from './supabase/sync'
 
-let mainWindow: BrowserWindow | null = null;
-let currentAdapter: TurnstileAdapter | null = null;
-let currentConfig: LocalConfig | null = null;
+let mainWindow: BrowserWindow | null = null
+let currentAdapter: TurnstileAdapter | null = null
+let currentConfig: LocalConfig | null = null
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -34,9 +34,9 @@ function createWindow(): void {
   // Bind logger to window
   logger.onLogCallback = (log) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('agent-log', log);
+      mainWindow.webContents.send('agent-log', log)
     }
-  };
+  }
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
@@ -62,68 +62,71 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('has-config', () => {
-    return hasLocalConfig();
+    return hasLocalConfig()
   })
 
   ipcMain.handle('get-config', () => {
-    return loadLocalConfig();
+    return loadLocalConfig()
   })
 
   ipcMain.handle('pair', async (_, code: string) => {
     try {
-      const config = await redeemPairingCode(code);
-      currentConfig = config;
-      return { success: true, config };
-    } catch (error: any) {
-      return { success: false, error: error.message };
+      const config = await redeemPairingCode(code)
+      currentConfig = config
+      return { success: true, config }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      return { success: false, error: msg }
     }
   })
 
   ipcMain.handle('connect', async () => {
     try {
       if (!currentConfig) {
-        currentConfig = loadLocalConfig();
+        currentConfig = loadLocalConfig()
       }
-      if (!currentConfig) throw new Error("No config found");
+      if (!currentConfig) throw new Error('No config found')
 
-      const config = configFromLocal(currentConfig);
-      logger.setLevel(config.logLevel);
+      const config = configFromLocal(currentConfig)
+      logger.setLevel(config.logLevel)
 
-      initSupabase(config);
-      currentAdapter = createAdapter(config);
-      await currentAdapter.connect();
-      
-      startHeartbeat(config);
-      await processPendingCommands(config);
-      startListener(config, currentAdapter);
-      
-      const { syncAcademyMembers } = await import('./supabase/userSync');
-      syncAcademyMembers(config, currentAdapter); // Inicia sync de usuários em segundo plano
-      
-      const controller = new AccessController(currentAdapter, config);
-      controller.start();
+      initSupabase(config)
+      currentAdapter = createAdapter(config)
+      await currentAdapter.connect()
 
-      logger.info('🚀 Agent conectado!');
-      return { success: true };
-    } catch (error: any) {
-      logger.error('Falha na conexão: ' + error.message);
-      return { success: false, error: error.message };
+      startHeartbeat(config)
+      await processPendingCommands(config)
+      startListener(config, currentAdapter)
+
+      const { syncAcademyMembers } = await import('./supabase/userSync')
+      syncAcademyMembers(config, currentAdapter) // Inicia sync de usuários em segundo plano
+
+      const controller = new AccessController(currentAdapter, config)
+      controller.start()
+
+      logger.info('🚀 Agent conectado!')
+      return { success: true }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      logger.error('Falha na conexão: ' + msg)
+      return { success: false, error: msg }
     }
   })
 
   ipcMain.handle('manual-action', async (_, action: 'grant' | 'deny') => {
-    if (!currentAdapter) return { success: false, error: 'Not connected' };
+    if (!currentAdapter) return { success: false, error: 'Not connected' }
     try {
       if (action === 'grant') {
-        await currentAdapter.grantAccess('IN');
-        logger.access(true, 'Acesso Manual', 'Liberado pelo administrador via painel');
+        await currentAdapter.grantAccess('IN')
+        logger.access(true, 'Acesso Manual', 'Liberado pelo administrador via painel')
       } else {
-        await currentAdapter.denyAccess();
-        logger.access(false, 'Bloqueio Manual', 'Bloqueado pelo administrador via painel');
+        await currentAdapter.denyAccess()
+        logger.access(false, 'Bloqueio Manual', 'Bloqueado pelo administrador via painel')
       }
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
+      return { success: true }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      return { success: false, error: msg }
     }
   })
 
@@ -141,16 +144,16 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', async (e) => {
-    if (currentAdapter) {
-        e.preventDefault();
-        try {
-            stopHeartbeat();
-            await stopListener();
-            await currentAdapter.disconnect();
-            if (currentConfig) await markDisconnected(configFromLocal(currentConfig));
-        } finally {
-            currentAdapter = null;
-            app.quit();
-        }
+  if (currentAdapter) {
+    e.preventDefault()
+    try {
+      stopHeartbeat()
+      await stopListener()
+      await currentAdapter.disconnect()
+      if (currentConfig) await markDisconnected(configFromLocal(currentConfig))
+    } finally {
+      currentAdapter = null
+      app.quit()
     }
-});
+  }
+})

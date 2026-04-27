@@ -8,7 +8,9 @@ import { LoginPage } from '../features/auth';
 import {
     Dashboard as AdminGlobalDashboard,
     Academias,
-    Financeiro
+    Financeiro,
+    ManualAgente,
+    OcupacaoDados
 } from '../features/adminGlobal';
 
 // Admin Academia
@@ -68,6 +70,16 @@ export function AppRoutes() {
             <Route path="/admin-global/financeiro" element={
                 <ProtectedRoute allowedRoles={['ADMIN_GLOBAL']}>
                     <Financeiro />
+                </ProtectedRoute>
+            } />
+            <Route path="/admin-global/manual-agente" element={
+                <ProtectedRoute allowedRoles={['ADMIN_GLOBAL']}>
+                    <ManualAgente />
+                </ProtectedRoute>
+            } />
+            <Route path="/admin-global/uso-de-dados" element={
+                <ProtectedRoute allowedRoles={['ADMIN_GLOBAL']}>
+                    <OcupacaoDados />
                 </ProtectedRoute>
             } />
 

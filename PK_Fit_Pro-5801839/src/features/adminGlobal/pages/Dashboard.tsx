@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '../../../shared/components/layout';
-import { getAcademies, type Academy } from '../../../shared/services/academy.service';
-import { supabase } from '../../../shared/services/supabase';
+import { getAcademies, getSystemStorageReport, type Academy } from '../../../shared/services/academy.service';
+
 import ChangePassword from '../../../shared/components/ChangePassword';
 import '../styles/dashboard.css';
 import { adminGlobalMenuItems as menuItems } from '../../../shared/config/adminGlobalMenu';
@@ -10,6 +10,8 @@ export default function Dashboard() {
     const [stats, setStats] = useState({
         activeAcademies: 0,
         totalStudents: 0,
+        totalProfessors: 0,
+        totalPhotos: 0,
         monthlyRevenue: 0,
         paidPercentage: 0
     });
@@ -23,13 +25,13 @@ export default function Dashboard() {
             const academiesResult = await getAcademies();
             const academies = academiesResult.success && academiesResult.data ? academiesResult.data : [];
 
-            // 2. Fetch Total Students Count
-            const { count: studentsCount, error: countError } = await supabase
-                .from('users')
-                .select('*', { count: 'exact', head: true })
-                .eq('role', 'ALUNO');
+            // 2. Fetch Users Metrics
+            const reportsResult = await getSystemStorageReport();
+            const reports = reportsResult.success && reportsResult.data ? reportsResult.data : [];
 
-            if (countError) console.error('Error counting students:', countError);
+            const studentsCount = reports.reduce((acc, r) => acc + r.totalStudents, 0);
+            const professorsCount = reports.reduce((acc, r) => acc + r.totalProfessors, 0);
+            const photosCount = reports.reduce((acc, r) => acc + r.totalPhotos, 0);
 
             // 3. Calculate Stats
             const activeAcademies = academies.filter(a => a.status === 'ACTIVE').length;
@@ -46,6 +48,8 @@ export default function Dashboard() {
             setStats({
                 activeAcademies,
                 totalStudents: studentsCount || 0,
+                totalProfessors: professorsCount || 0,
+                totalPhotos: photosCount || 0,
                 monthlyRevenue,
                 paidPercentage
             });
@@ -135,6 +139,34 @@ export default function Dashboard() {
                     </div>
 
                     <div className="stat-card">
+                        <div className="stat-icon info" style={{ background: 'var(--info-100)', color: 'var(--info-600)' }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                            </svg>
+                        </div>
+                        <div className="stat-content">
+                            <div className="stat-value">
+                                {isLoading ? '...' : stats.totalProfessors}
+                            </div>
+                            <div className="stat-label">Total de Professores</div>
+                        </div>
+                    </div>
+
+                    <div className="stat-card">
+                        <div className="stat-icon" style={{ background: 'var(--primary-100)', color: 'var(--primary-600)' }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                            </svg>
+                        </div>
+                        <div className="stat-content">
+                            <div className="stat-value">
+                                {isLoading ? '...' : stats.totalPhotos}
+                            </div>
+                            <div className="stat-label">Fotos Cadastradas</div>
+                        </div>
+                    </div>
+
+                    <div className="stat-card">
                         <div className="stat-icon warning">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
@@ -161,6 +193,27 @@ export default function Dashboard() {
                             <div className="stat-label">Inadimplência (Pagamentos em Dia)</div>
                         </div>
                     </div>
+                </div>
+
+                {/* Agent Download Section */}
+                <div className="download-card">
+                    <div className="download-info">
+                        <div className="download-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+                            </svg>
+                        </div>
+                        <div className="download-text">
+                            <h3>PK Fit Agent</h3>
+                            <p>Baixe o agente local para sincronizar as catracas e biometrias da sua academia.</p>
+                        </div>
+                    </div>
+                    <a href="/agent-setup.exe" download className="download-button-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5z" />
+                        </svg>
+                        Baixar Instalador (.exe)
+                    </a>
                 </div>
 
                 {/* Recent Academies */}

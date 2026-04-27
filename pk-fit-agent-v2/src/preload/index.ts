@@ -9,7 +9,7 @@ const api = {
   connect: () => ipcRenderer.invoke('connect'),
   manualAction: (action: 'grant' | 'deny') => ipcRenderer.invoke('manual-action', action),
   onAgentLog: (callback: (log: any) => void) => {
-    ipcRenderer.on('agent-log', (_event, log) => callback(log));
+    ipcRenderer.on('agent-log', (_event, log) => callback(log))
   }
 }
 

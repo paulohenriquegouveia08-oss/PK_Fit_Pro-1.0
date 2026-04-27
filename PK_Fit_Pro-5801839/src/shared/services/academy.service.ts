@@ -129,6 +129,85 @@ export async function getAcademyStats(academyId: string): Promise<ApiResponse<{ 
     }
 }
 
+export interface StorageReport {
+    academyId: string;
+    academyName: string;
+    totalStudents: number;
+    totalProfessors: number;
+    totalPhotos: number;
+    estimatedStorageMb: number;
+    estimatedDatabaseMb: number;
+}
+
+/**
+ * Retorna as estimativas de uso de banco e storage de todas as academias.
+ * Agrupa N+1 queries eficientemente em JS local.
+ */
+export async function getSystemStorageReport(): Promise<ApiResponse<StorageReport[]>> {
+    try {
+        // 1. Puxa academias ativas
+        const { data: academies, error: acaError } = await supabase
+            .from('academies')
+            .select('id, name')
+            .order('name');
+            
+        if (acaError) throw acaError;
+
+        // 2. Traz todos os usuários e mapeamentos separados (bypassa problemas de inner join RLS)
+        const { data: allAcademyUsers } = await supabase
+            .from('academy_users')
+            .select('academy_id, user_id');
+            
+        const { data: allUsers } = await supabase
+            .from('users')
+            .select('id, role, photo_url');
+
+        // Cria um mapa rápido de usuários
+        const userMap = new Map();
+        (allUsers || []).forEach(u => userMap.set(u.id, u));
+
+        // 3. Processa
+        const PHOTO_WEIGHT_MB = 0.15;
+        const DB_USER_WEIGHT_MB = 0.01;
+
+        const reports: StorageReport[] = (academies || []).map((aca: any) => {
+            let students = 0;
+            let profs = 0;
+            let photos = 0;
+
+            const usersInAca = (allAcademyUsers || []).filter((au: any) => au.academy_id === aca.id);
+            
+            usersInAca.forEach((au: any) => {
+                const user = userMap.get(au.user_id);
+                if (user?.role === 'ALUNO') students++;
+                if (user?.role === 'PROFESSOR') profs++;
+                if (user?.photo_url) photos++;
+            });
+
+            const totalUsers = students + profs + 1; // +1 pra admin
+
+            return {
+                academyId: aca.id,
+                academyName: aca.name,
+                totalStudents: students,
+                totalProfessors: profs,
+                totalPhotos: photos,
+                estimatedStorageMb: parseFloat((photos * PHOTO_WEIGHT_MB).toFixed(2)),
+                estimatedDatabaseMb: parseFloat((totalUsers * DB_USER_WEIGHT_MB).toFixed(2))
+            };
+        });
+
+        // Sort by total data usage (desc)
+        reports.sort((a, b) => (b.estimatedStorageMb + b.estimatedDatabaseMb) - (a.estimatedStorageMb + a.estimatedDatabaseMb));
+
+        return { success: true, data: reports };
+
+    } catch (error) {
+        console.error('Error fetching storage report:', error);
+        return { success: false, error: 'Erro ao analisar uso de dados.' };
+    }
+}
+
 // ==========================================
 // FUNÇÕES DE ESCRITA (CREATE, UPDATE, DELETE)
 // ==========================================

@@ -1,4 +1,3 @@
-import React from 'react';
 import { DashboardLayout } from '../../../shared/components/layout';
 import { adminGlobalMenuItems as menuItems } from '../../../shared/config/adminGlobalMenu';
 import '../styles/dashboard.css';

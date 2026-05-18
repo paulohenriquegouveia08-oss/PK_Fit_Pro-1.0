@@ -7,6 +7,8 @@ const api = {
   getConfig: () => ipcRenderer.invoke('get-config'),
   pair: (code: string) => ipcRenderer.invoke('pair', code),
   connect: () => ipcRenderer.invoke('connect'),
+  disconnect: () => ipcRenderer.invoke('disconnect'),
+  newConnection: () => ipcRenderer.invoke('new-connection'),
   manualAction: (action: 'grant' | 'deny') => ipcRenderer.invoke('manual-action', action),
   onAgentLog: (callback: (log: any) => void) => {
     ipcRenderer.on('agent-log', (_event, log) => callback(log))

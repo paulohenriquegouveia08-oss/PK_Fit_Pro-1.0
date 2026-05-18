@@ -208,11 +208,32 @@ export default function Dashboard() {
                             <p>Baixe o agente local para sincronizar as catracas e biometrias da sua academia.</p>
                         </div>
                     </div>
-                    <a href="/agent-setup.exe" download className="download-button-link">
+                    <a href="/downloads/PKFitAgent-Setup.exe" download className="download-button-link">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5z" />
                         </svg>
                         Baixar Instalador (.exe)
+                    </a>
+                </div>
+
+                {/* Emulator Download Section */}
+                <div className="download-card" style={{ marginTop: '1rem' }}>
+                    <div className="download-info">
+                        <div className="download-icon" style={{ background: 'var(--info-100)', color: 'var(--info-600)' }}>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h4v-2H5V8h14v10h-4v2h4c1.1 0 2-.9 2-2V6c0-1.1-.89-2-2-2zm-7 11.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />
+                            </svg>
+                        </div>
+                        <div className="download-text">
+                            <h3>PK Fit Hardware Emulator</h3>
+                            <p>Baixe o emulador de hardware virtual para testar a comunicação local (ControliD, Henry, TopData).</p>
+                        </div>
+                    </div>
+                    <a href="/downloads/PKFitEmulator-Setup.exe" download className="download-button-link" style={{ background: 'var(--info-600)' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5z" />
+                        </svg>
+                        Baixar Emulador (.exe)
                     </a>
                 </div>
 

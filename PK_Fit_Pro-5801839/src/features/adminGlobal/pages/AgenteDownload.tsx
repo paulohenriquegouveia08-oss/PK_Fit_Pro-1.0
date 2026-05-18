@@ -139,16 +139,29 @@ export default function AgenteDownload() {
                             Software que roda no computador da academia, conectando-se à catraca
                             física e sincronizando os dados de acesso em tempo real com o sistema PK Fit Pro.
                         </p>
-                        <a
-                            href={AGENT_DOWNLOAD_URL}
-                            className="agent-download-btn"
-                            download="PKFitAgent-Setup.exe"
-                        >
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
-                            </svg>
-                            Baixar PKFitAgent.exe
-                        </a>
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                            <a
+                                href={AGENT_DOWNLOAD_URL}
+                                className="agent-download-btn"
+                                download="PKFitAgent-Setup.exe"
+                            >
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+                                </svg>
+                                Baixar PKFitAgent.exe
+                            </a>
+                            <a
+                                href="/downloads/PKFitEmulator-Setup.exe"
+                                className="agent-download-btn"
+                                style={{ background: 'var(--info-600)' }}
+                                download="PKFitEmulator-Setup.exe"
+                            >
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h4v-2H5V8h14v10h-4v2h4c1.1 0 2-.9 2-2V6c0-1.1-.89-2-2-2zm-7 11.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />
+                                </svg>
+                                Baixar PKFitEmulator.exe
+                            </a>
+                        </div>
                         <div className="agent-version-tag">
                             v{AGENT_VERSION} • Windows 10/11
                         </div>

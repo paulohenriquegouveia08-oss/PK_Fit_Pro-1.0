@@ -12,15 +12,27 @@ import { logger } from '../core/logger'
 export function createAdapter(config: AgentConfig): TurnstileAdapter {
   logger.info(`Criando adaptador para marca: ${config.brand}`)
 
+  const adapterConfig = {
+    ip: config.ip,
+    port: config.port,
+    authUser: config.authUser,
+    authPassword: config.authPassword
+  }
+
   switch (config.brand) {
     case 'CONTROL_ID':
-      return new ControlIdAdapter(config.ip, config.port, config.authUser, config.authPassword)
+      return new ControlIdAdapter(adapterConfig)
 
     case 'TOP_DATA':
-      return new TopDataAdapter(config.ip, config.port, config.authUser, config.authPassword)
+      return new TopDataAdapter(adapterConfig.ip, adapterConfig.port)
 
     case 'HENRY':
-      return new HenryAdapter(config.ip, config.port, config.authUser, config.authPassword)
+      return new HenryAdapter(
+        adapterConfig.ip,
+        adapterConfig.port,
+        adapterConfig.authUser,
+        adapterConfig.authPassword
+      )
 
     default:
       throw new Error(`❌ Marca de catraca não suportada: ${config.brand}`)

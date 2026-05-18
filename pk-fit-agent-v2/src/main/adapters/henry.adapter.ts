@@ -94,7 +94,7 @@ export class HenryAdapter implements TurnstileAdapter {
     try {
       await this.httpRequest('/api/system/status')
       logger.info(`[Henry] ✅ Conexão HTTP estabelecida`)
-    } catch (httpError) {
+    } catch {
       // Tentar endpoint alternativo (varia por modelo/firmware)
       try {
         await this.httpRequest('/status')
@@ -410,32 +410,15 @@ export class HenryAdapter implements TurnstileAdapter {
   // SINCRONIZAÇÃO DE USUÁRIOS E FACES
   // ==========================================
 
-  /**
-   * Gera um ID numérico a partir da UUID do Supabase.
-   */
-  private generateNumericId(uuid: string): number {
-    let hash = 0
-    for (let i = 0; i < uuid.length; i++) {
-      const char = uuid.charCodeAt(i)
-      hash = (hash << 5) - hash + char
-      hash = hash & hash
-    }
-    return Math.abs(hash)
-  }
-
-  private async downloadImageAsBase64(url: string): Promise<string> {
-    const response = await fetch(url)
-    if (!response.ok) throw new Error(`Falha ao baixar imagem: ${response.statusText}`)
-    const buffer = await response.arrayBuffer()
-    return Buffer.from(buffer).toString('base64')
-  }
-
-  async syncUserFace(userId: string, name: string, photoUrl: string): Promise<void> {
-    const numericId = this.generateNumericId(userId)
-    logger.info(`[Henry] Sincronizando usuário: ${name} (ID: ${numericId})`)
+  async syncUserFace(providerUserId: string, name: string, faceImageBuffer: Buffer): Promise<void> {
+    logger.info(`[Henry] Syncing user: ${name} (Provider ID: ${providerUserId})`)
 
     try {
-      // 1. Criar ou atualizar o usuário na Henry
+      const numericId = parseInt(providerUserId, 10)
+      if (isNaN(numericId)) {
+        throw new Error(`Invalid provider user ID: ${providerUserId}`)
+      }
+
       await this.httpRequest('/api/users', 'POST', {
         id: numericId,
         name: name,
@@ -443,10 +426,9 @@ export class HenryAdapter implements TurnstileAdapter {
         role: 'user'
       })
 
-      // 2. Se houver foto, enviar a face
-      if (photoUrl) {
-        logger.debug(`[Henry] Enviando face para ID ${numericId}...`)
-        const base64Image = await this.downloadImageAsBase64(photoUrl)
+      if (faceImageBuffer && faceImageBuffer.length > 0) {
+        logger.debug(`[Henry] Sending face for ID ${numericId}...`)
+        const base64Image = faceImageBuffer.toString('base64')
 
         await this.httpRequest('/api/faces', 'POST', {
           user_id: numericId,
@@ -454,23 +436,29 @@ export class HenryAdapter implements TurnstileAdapter {
         })
       }
 
-      logger.info(`[Henry] ✅ Usuário ${name} sincronizado com sucesso.`)
+      logger.info(`[Henry] ✅ User ${name} synced successfully.`)
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
-      logger.error(`[Henry] ❌ Erro ao sincronizar usuário ${name}: ${msg}`)
+      logger.error(`[Henry] ❌ Error syncing user ${name}: ${msg}`)
       throw error
     }
   }
 
-  async removeUser(userId: string): Promise<void> {
-    const numericId = this.generateNumericId(userId)
-    logger.info(`[Henry] Removendo usuário ID: ${numericId}`)
+  async removeUser(providerUserId: string): Promise<void> {
+    const numericId = parseInt(providerUserId, 10)
+    if (isNaN(numericId)) {
+      logger.warn(`[Henry] Invalid provider user ID for removal: ${providerUserId}`)
+      return
+    }
+
+    logger.info(`[Henry] Removing user ID: ${numericId}`)
 
     try {
       await this.httpRequest(`/api/users/${numericId}`, 'DELETE')
-      logger.info(`[Henry] ✅ Usuário removido do hardware.`)
+      logger.info(`[Henry] ✅ User removed from hardware.`)
     } catch (error) {
-      logger.error(`[Henry] ❌ Erro ao remover usuário: ${error}`)
+      const msg = error instanceof Error ? error.message : String(error)
+      logger.error(`[Henry] ❌ Error removing user: ${msg}`)
     }
   }
 

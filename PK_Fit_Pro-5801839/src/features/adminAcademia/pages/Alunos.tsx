@@ -23,6 +23,7 @@ import {
     markStudentPlanAsUnpaid,
     getStudentPaymentStatus
 } from '../../../shared/services/financial.service';
+import { triggerFaceSyncForUser } from '../../../shared/services/faceSync.service';
 import type { User, Plan } from '../../../shared/types';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../../../features/adminGlobal/styles/academias.css';
@@ -220,6 +221,11 @@ export default function Alunos() {
             if (result.success && result.data) {
                 // ... (existing plan logic)
                 const planResult = await createStudentPlan(result.data.id, formData.plan_id, academyId);
+
+                // Trigger face sync if photo was uploaded
+                if (photoUrlToSave) {
+                    await triggerFaceSyncForUser(result.data.id, formData.name, photoUrlToSave);
+                }
 
                 if (planResult.success) {
                     if (formData.payment_method !== 'pagar_depois' && selectedPlanPreview?.price) {

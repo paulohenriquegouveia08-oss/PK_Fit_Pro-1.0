@@ -65,6 +65,26 @@ function App(): React.ReactNode {
     await window.api.manualAction(action);
   };
 
+  const handleNewConnection = async () => {
+    if (!confirm('Tem certeza que deseja fazer uma nova conexão? A conexão atual será encerrada.')) {
+      return;
+    }
+    setLoading(true);
+    await window.api.newConnection();
+    setHasConfig(false);
+    setConfig(null);
+    setIsConnected(false);
+    setCode('');
+    setLoading(false);
+  };
+
+  const handleDisconnect = async () => {
+    setLoading(true);
+    await window.api.disconnect();
+    setIsConnected(false);
+    setLoading(false);
+  };
+
   if (hasConfig === null) return <div className="loader">Carregando...</div>;
 
   return (
@@ -108,16 +128,36 @@ function App(): React.ReactNode {
               <p><strong>Catraca:</strong> {config?.turnstileName} ({config?.brand})</p>
               <p><strong>IP:</strong> {config?.ipAddress}:{config?.port}</p>
             </div>
-            
-            {!isConnected && (
+
+            <div className="connection-buttons">
+              {!isConnected && (
+                <button 
+                  className="btn-success w-full" 
+                  onClick={handleConnect} 
+                  disabled={loading}
+                >
+                  {loading ? 'Conectando...' : '⚡ Iniciar Conexão'}
+                </button>
+              )}
+
+              {isConnected && (
+                <button 
+                  className="btn-danger w-full" 
+                  onClick={handleDisconnect}
+                  disabled={loading}
+                >
+                  🔌 Desconectar
+                </button>
+              )}
+
               <button 
-                className="btn-success w-full" 
-                onClick={handleConnect} 
+                className="btn-secondary w-full" 
+                onClick={handleNewConnection}
                 disabled={loading}
               >
-                {loading ? 'Conectando...' : '⚡ Iniciar Conexão'}
+                🔄 Nova Conexão (Parear Novamente)
               </button>
-            )}
+            </div>
             {error && <div className="error">{error}</div>}
             
             {isConnected && (

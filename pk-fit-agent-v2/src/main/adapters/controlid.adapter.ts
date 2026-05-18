@@ -1,10 +1,12 @@
 import type { TurnstileAdapter, CredentialCallback, CredentialEvent } from './adapter.interface'
 import { logger } from '../core/logger'
 
-// ==========================================
-// CONTROL ID ADAPTER — REST API
-// Comunicação via HTTP com endpoints .fcgi
-// ==========================================
+export interface ControlIdConfig {
+  ip: string
+  port: number
+  authUser: string
+  authPassword: string
+}
 
 export class ControlIdAdapter implements TurnstileAdapter {
   readonly brandName = 'Control ID'
@@ -18,24 +20,16 @@ export class ControlIdAdapter implements TurnstileAdapter {
   private pollingInterval: ReturnType<typeof setInterval> | null = null
   private lastEventId: number = 0
 
-  constructor(ip: string, port: number, authUser: string, authPassword: string) {
-    this.ip = ip
-    this.port = port
-    this.authUser = authUser
-    this.authPassword = authPassword
+  constructor(config: ControlIdConfig) {
+    this.ip = config.ip
+    this.port = config.port
+    this.authUser = config.authUser
+    this.authPassword = config.authPassword
   }
-
-  // ==========================================
-  // URL base
-  // ==========================================
 
   private get baseUrl(): string {
     return `http://${this.ip}:${this.port}`
   }
-
-  // ==========================================
-  // HTTP helpers
-  // ==========================================
 
   private get authHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
@@ -53,7 +47,7 @@ export class ControlIdAdapter implements TurnstileAdapter {
     const options: RequestInit = {
       method: body ? 'POST' : 'GET',
       headers: this.authHeaders,
-      signal: AbortSignal.timeout(5000) // timeout de 5s
+      signal: AbortSignal.timeout(5000)
     }
 
     if (body) {
@@ -73,26 +67,20 @@ export class ControlIdAdapter implements TurnstileAdapter {
     return response.text()
   }
 
-  // ==========================================
-  // CONEXÃO
-  // ==========================================
-
   async connect(): Promise<void> {
-    logger.info(`[Control ID] Conectando à catraca em ${this.ip}:${this.port}...`)
+    logger.info(`[Control ID] Connecting to turnstile at ${this.ip}:${this.port}...`)
 
     try {
-      // Testa conexão buscando info da catraca
       await this.request('/get_catra_info.fcgi')
       this.connected = true
-      logger.info(`[Control ID] ✅ Conectado com sucesso!`)
+      logger.info(`[Control ID] ✅ Connected successfully!`)
 
-      // Inicia polling de eventos de credencial
       this.startEventPolling()
     } catch (error) {
       this.connected = false
       const msg = error instanceof Error ? error.message : String(error)
-      logger.error(`[Control ID] ❌ Falha na conexão: ${msg}`)
-      throw new Error(`Não foi possível conectar à catraca Control ID: ${msg}`)
+      logger.error(`[Control ID] ❌ Connection failed: ${msg}`)
+      throw new Error(`Could not connect to Control ID turnstile: ${msg}`)
     }
   }
 
@@ -102,22 +90,17 @@ export class ControlIdAdapter implements TurnstileAdapter {
       this.pollingInterval = null
     }
     this.connected = false
-    logger.info(`[Control ID] Desconectado`)
+    logger.info(`[Control ID] Disconnected`)
   }
 
   isConnected(): boolean {
     return this.connected
   }
 
-  // ==========================================
-  // CONTROLE DE ACESSO
-  // ==========================================
-
   async grantAccess(direction: 'IN' | 'OUT'): Promise<void> {
-    // clockwise = sentido horário (entrada), anticlockwise = anti-horário (saída)
     const allow = direction === 'IN' ? 'clockwise' : 'anticlockwise'
 
-    logger.debug(`[Control ID] Liberando catraca: ${allow}`)
+    logger.debug(`[Control ID] Granting access: ${allow}`)
 
     try {
       await this.request('/execute_actions.fcgi', {
@@ -129,19 +112,18 @@ export class ControlIdAdapter implements TurnstileAdapter {
         ]
       })
 
-      logger.debug(`[Control ID] Catraca liberada (${direction})`)
+      logger.debug(`[Control ID] Access granted (${direction})`)
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
-      logger.error(`[Control ID] Erro ao liberar: ${msg}`)
+      logger.error(`[Control ID] Error granting access: ${msg}`)
       throw error
     }
   }
 
   async denyAccess(): Promise<void> {
-    logger.debug(`[Control ID] Acesso negado — catraca travada`)
+    logger.debug(`[Control ID] Access denied`)
 
     try {
-      // Aciona buzzer/LED vermelho se disponível
       await this.request('/execute_actions.fcgi', {
         actions: [
           {
@@ -151,28 +133,18 @@ export class ControlIdAdapter implements TurnstileAdapter {
         ]
       })
     } catch (error) {
-      // Deny é "não fazer nada" na catraca, então falha silenciosa é ok
-      logger.debug(`[Control ID] Erro ao sinalizar negação (não crítico): ${error}`)
+      logger.debug(`[Control ID] Error signaling denial (not critical): ${error}`)
     }
   }
-
-  // ==========================================
-  // EVENTOS DE CREDENCIAL
-  // ==========================================
 
   onCredentialRead(callback: CredentialCallback): void {
     this.credentialCallback = callback
   }
 
-  /**
-   * Polling de eventos de acesso.
-   * A Control ID notifica eventos via load_objects.
-   * Poll a cada 500ms para resposta rápida.
-   */
   private startEventPolling(): void {
     if (this.pollingInterval) return
 
-    logger.debug(`[Control ID] Iniciando polling de eventos (500ms)`)
+    logger.debug(`[Control ID] Starting event polling (500ms)`)
 
     this.pollingInterval = setInterval(async () => {
       if (!this.connected || !this.credentialCallback) return
@@ -190,11 +162,10 @@ export class ControlIdAdapter implements TurnstileAdapter {
         if (!logs || logs.length === 0) return
 
         const latest = logs[0]
-        if (latest.id <= this.lastEventId) return // já processado
+        if (latest.id <= this.lastEventId) return
 
         this.lastEventId = latest.id
 
-        // Determinar tipo de credencial
         let type: CredentialEvent['type'] = 'CARD'
         const event = latest.event
         if (event === 7 || event === 8) type = 'BIOMETRIC'
@@ -207,52 +178,25 @@ export class ControlIdAdapter implements TurnstileAdapter {
           timestamp: new Date()
         }
 
-        logger.debug(`[Control ID] Credencial lida: ${type} — ${credential.rawValue}`)
+        logger.debug(`[Control ID] Credential read: ${type} — ${credential.rawValue}`)
         this.credentialCallback(credential)
       } catch (error) {
-        // Polling silencioso — erros podem ser transientes
         if (this.connected) {
-          logger.debug(`[Control ID] Erro no polling: ${error}`)
+          logger.debug(`[Control ID] Polling error: ${error}`)
         }
       }
-    }, 500) // 500ms = resposta em no máximo meio segundo
+    }, 500)
   }
 
-  // ==========================================
-  // SINCRONIZAÇÃO DE USUÁRIOS E FACES
-  // ==========================================
-
-  /**
-   * Gera um ID numérico a partir da UUID do Supabase.
-   * Necessário pois a Control ID exige IDs numéricos (int).
-   */
-  private generateNumericId(uuid: string): number {
-    let hash = 0
-    for (let i = 0; i < uuid.length; i++) {
-      const char = uuid.charCodeAt(i)
-      hash = (hash << 5) - hash + char
-      hash = hash & hash // Convert to 32bit int
-    }
-    return Math.abs(hash)
-  }
-
-  /**
-   * Baixa uma imagem de uma URL e converte para Base64.
-   */
-  private async downloadImageAsBase64(url: string): Promise<string> {
-    const response = await fetch(url)
-    if (!response.ok) throw new Error(`Falha ao baixar imagem: ${response.statusText}`)
-    const buffer = await response.arrayBuffer()
-    return Buffer.from(buffer).toString('base64')
-  }
-
-  async syncUserFace(userId: string, name: string, photoUrl: string): Promise<void> {
-    const numericId = this.generateNumericId(userId)
-    logger.info(`[Control ID] Sincronizando usuário: ${name} (ID: ${numericId})`)
+  async syncUserFace(providerUserId: string, name: string, faceImageBuffer: Buffer): Promise<void> {
+    logger.info(`[Control ID] Syncing user: ${name} (Provider ID: ${providerUserId})`)
 
     try {
-      // 1. Criar ou atualizar o usuário na iDFace
-      // Usamos upsert: true se disponível, ou lidamos com erro se já existir
+      const numericId = parseInt(providerUserId, 10)
+      if (isNaN(numericId)) {
+        throw new Error(`Invalid provider user ID: ${providerUserId}`)
+      }
+
       await this.request('/create_objects.fcgi', {
         object: 'users',
         values: [
@@ -264,30 +208,32 @@ export class ControlIdAdapter implements TurnstileAdapter {
         ]
       })
 
-      // 2. Se houver foto, baixar e enviar o rosto
-      if (photoUrl) {
-        logger.debug(`[Control ID] Baixando e enviando face para ID ${numericId}...`)
-        const base64Image = await this.downloadImageAsBase64(photoUrl)
+      if (faceImageBuffer && faceImageBuffer.length > 0) {
+        logger.debug(`[Control ID] Sending face for ID ${numericId}...`)
+        const base64Image = faceImageBuffer.toString('base64')
 
-        // Cadastrar a face
-        // Nota: O endpoint set_user_face.fcgi facilita esse processo na iDFace
         await this.request('/set_user_face.fcgi', {
           user_id: numericId,
           face_image: base64Image
         })
       }
 
-      logger.info(`[Control ID] ✅ Usuário ${name} sincronizado com sucesso.`)
+      logger.info(`[Control ID] ✅ User ${name} synced successfully.`)
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
-      logger.error(`[Control ID] ❌ Erro ao sincronizar usuário ${name}: ${msg}`)
+      logger.error(`[Control ID] ❌ Error syncing user ${name}: ${msg}`)
       throw error
     }
   }
 
-  async removeUser(userId: string): Promise<void> {
-    const numericId = this.generateNumericId(userId)
-    logger.info(`[Control ID] Removendo usuário ID: ${numericId}`)
+  async removeUser(providerUserId: string): Promise<void> {
+    const numericId = parseInt(providerUserId, 10)
+    if (isNaN(numericId)) {
+      logger.warn(`[Control ID] Invalid provider user ID for removal: ${providerUserId}`)
+      return
+    }
+
+    logger.info(`[Control ID] Removing user ID: ${numericId}`)
 
     try {
       await this.request('/destroy_objects.fcgi', {
@@ -296,15 +242,11 @@ export class ControlIdAdapter implements TurnstileAdapter {
           users: { id: numericId }
         }
       })
-      logger.info(`[Control ID] ✅ Usuário removido do hardware.`)
+      logger.info(`[Control ID] ✅ User removed from hardware.`)
     } catch (error) {
-      logger.error(`[Control ID] ❌ Erro ao remover usuário: ${error}`)
+      logger.error(`[Control ID] ❌ Error removing user: ${error}`)
     }
   }
-
-  // ==========================================
-  // INFO
-  // ==========================================
 
   async getStatus(): Promise<'CONNECTED' | 'DISCONNECTED' | 'ERROR'> {
     try {

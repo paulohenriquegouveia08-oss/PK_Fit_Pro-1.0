@@ -60,13 +60,17 @@ export interface TurnstileAdapter {
 
   /**
    * Sincroniza um usuário e seu rosto/facial com o hardware.
+   * @param providerUserId ID numérico gerado pelo MappingService (não UUID)
+   * @param name Nome do usuário
+   * @param faceImageBuffer Imagem processada (Buffer) - não mais URL
    */
-  syncUserFace?(userId: string, name: string, photoUrl: string): Promise<void>
+  syncUserFace?(providerUserId: string, name: string, faceImageBuffer: Buffer): Promise<void>
 
   /**
    * Remove um usuário do hardware.
+   * @param providerUserId ID numérico gerado pelo MappingService
    */
-  removeUser?(userId: string): Promise<void>
+  removeUser?(providerUserId: string): Promise<void>
 
   /**
    * (Opcional) Retorna contagem de giros da catraca.

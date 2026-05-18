@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'sans-serif';
+  background-color: #0f172a;
+  color: #f8fafc;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.log-entry {
+  font-family: 'Consolas', 'Monaco', 'monospace';
+  font-size: 12px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #334155;
+}
+
+.log-entry.access_granted {
+  border-left: 3px solid #22c55e;
+}
+
+.log-entry.access_denied {
+  border-left: 3px solid #ef4444;
+}
+
+.log-entry.gate_opened {
+  border-left: 3px solid #3b82f6;
+}
+
+.log-entry.rotation_detected {
+  border-left: 3px solid #8b5cf6;
+}
+
+.log-entry.heartbeat {
+  border-left: 3px solid #22d3ee;
+}
+
+.log-entry.error {
+  border-left: 3px solid #f59e0b;
+}
+
+.log-entry.offline {
+  border-left: 3px solid #6b7280;
+}
+
+.log-entry.online {
+  border-left: 3px solid #22c55e;
+}

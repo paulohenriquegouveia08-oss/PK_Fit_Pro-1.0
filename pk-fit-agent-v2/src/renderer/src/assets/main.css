@@ -93,7 +93,17 @@ button {
 .btn-danger { background: var(--danger); }
 .btn-danger:hover { background: var(--danger-hover); }
 
+.btn-secondary { background: #64748b; }
+.btn-secondary:hover { background: #475569; }
+
 .w-full { width: 100%; }
+
+.connection-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
 
 .status-header {
   display: flex;

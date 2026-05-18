@@ -130,6 +130,43 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('disconnect', async () => {
+    try {
+      stopHeartbeat()
+      await stopListener()
+      if (currentAdapter) {
+        await currentAdapter.disconnect()
+        currentAdapter = null
+      }
+      if (currentConfig) {
+        await markDisconnected(configFromLocal(currentConfig))
+      }
+      logger.info('🔌 Agent desconectado pelo usuário')
+      return { success: true }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      logger.error('Erro ao desconectar: ' + msg)
+      return { success: false, error: msg }
+    }
+  })
+
+  ipcMain.handle('new-connection', async () => {
+    try {
+      stopHeartbeat()
+      await stopListener()
+      if (currentAdapter) {
+        await currentAdapter.disconnect()
+        currentAdapter = null
+      }
+      currentConfig = null
+      logger.info('🔄 Preparando para nova conexão...')
+      return { success: true }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      return { success: false, error: msg }
+    }
+  })
+
   createWindow()
 
   app.on('activate', function () {

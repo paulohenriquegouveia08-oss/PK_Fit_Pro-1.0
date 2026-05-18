@@ -2,14 +2,10 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import type { AgentConfig } from '../config'
 import { logger } from '../core/logger'
 
-let supabase: SupabaseClient | null = null
+let _supabase: SupabaseClient | null = null
 
-/**
- * Inicializa o Supabase client com a service key
- * (service key para bypass de RLS — o Agent precisa de acesso total)
- */
 export function initSupabase(config: AgentConfig): SupabaseClient {
-  supabase = createClient(config.supabaseUrl, config.supabaseServiceKey, {
+  _supabase = createClient(config.supabaseUrl, config.supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
@@ -22,15 +18,30 @@ export function initSupabase(config: AgentConfig): SupabaseClient {
   })
 
   logger.info('Supabase client inicializado')
-  return supabase
+  return _supabase
 }
 
-/**
- * Retorna o client Supabase (já inicializado)
- */
 export function getSupabase(): SupabaseClient {
-  if (!supabase) {
+  if (!_supabase) {
     throw new Error('Supabase client não inicializado. Chame initSupabase() primeiro.')
   }
-  return supabase
+  return _supabase
+}
+
+export const supabase = {
+  from(table: string) {
+    return getSupabase().from(table)
+  },
+  rpc(fn: string, args?: Record<string, unknown>) {
+    return getSupabase().rpc(fn, args)
+  },
+  channel(name: string) {
+    return getSupabase().channel(name)
+  },
+  removeChannel(channel: unknown) {
+    return getSupabase().removeChannel(channel as any)
+  },
+  storage(bucket: string) {
+    return getSupabase().storage.from(bucket)
+  }
 }

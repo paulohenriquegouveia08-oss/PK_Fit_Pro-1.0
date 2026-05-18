@@ -41,7 +41,7 @@ export class TopDataAdapter implements TurnstileAdapter {
   private readonly reconnectDelay = 5000 // 5 segundos entre reconexões
   private dataBuffer: Buffer = Buffer.alloc(0)
 
-  constructor(ip: string, port: number, _authUser: string, _authPassword: string) {
+  constructor(ip: string, port: number) {
     this.ip = ip
     this.port = port || 3570 // Porta padrão dos equipamentos Top Data
   }
@@ -278,29 +278,19 @@ export class TopDataAdapter implements TurnstileAdapter {
   // SINCRONIZAÇÃO DE USUÁRIOS E FACES
   // ==========================================
 
-  /**
-   * Gera um ID numérico a partir da UUID do Supabase.
-   */
-  private generateNumericId(uuid: string): number {
-    let hash = 0
-    for (let i = 0; i < uuid.length; i++) {
-      const char = uuid.charCodeAt(i)
-      hash = (hash << 5) - hash + char
-      hash = hash & hash
-    }
-    return Math.abs(hash)
-  }
-
-  async syncUserFace(userId: string, name: string, _photoUrl: string): Promise<void> {
-    const numericId = this.generateNumericId(userId)
-    logger.info(`[Top Data] Sincronizando usuário: ${name} (ID: ${numericId})`)
+  async syncUserFace(
+    providerUserId: string,
+    name: string,
+    _faceImageBuffer: Buffer
+  ): Promise<void> {
+    logger.info(`[Top Data] Syncing user: ${name} (Provider ID: ${providerUserId})`)
 
     try {
-      // Em TopData TCP (EasyInner), o cadastro de usuário é feito via pacotes de configuração de lista
-      // Por limitação do protocolo binário direto, sincronizamos o ID do usuário.
-      // O reconhecimento facial binário (Inner Face) geralmente requer o middleware da TopData.
+      const numericId = parseInt(providerUserId, 10)
+      if (isNaN(numericId)) {
+        throw new Error(`Invalid provider user ID: ${providerUserId}`)
+      }
 
-      // Simulação de comando de cadastro no hardware (ID do cartão = Numeric ID)
       const packet = Buffer.from([
         0x02,
         0x00,
@@ -311,23 +301,30 @@ export class TopDataAdapter implements TurnstileAdapter {
       ])
       this.sendCommand(packet)
 
-      logger.info(`[Top Data] ✅ Usuário ${name} enviado para a lista do hardware.`)
-      if (_photoUrl) {
+      logger.info(`[Top Data] ✅ User ${name} sent to hardware list.`)
+
+      if (_faceImageBuffer && _faceImageBuffer.length > 0) {
         logger.warn(
-          `[Top Data] ⚠️ Nota: O envio de fotos faciais para TopData requer o middleware InnerFace ou driver específico de imagem binária.`
+          `[Top Data] ⚠️ Note: Sending facial photos to TopData requires InnerFace middleware or specific binary image driver.`
         )
       }
     } catch (error) {
-      logger.error(`[Top Data] ❌ Erro ao sincronizar usuário: ${error}`)
+      const msg = error instanceof Error ? error.message : String(error)
+      logger.error(`[Top Data] ❌ Error syncing user: ${msg}`)
+      throw error
     }
   }
 
-  async removeUser(userId: string): Promise<void> {
-    const numericId = this.generateNumericId(userId)
-    logger.info(`[Top Data] Removendo usuário ID: ${numericId}`)
+  async removeUser(providerUserId: string): Promise<void> {
+    const numericId = parseInt(providerUserId, 10)
+    if (isNaN(numericId)) {
+      logger.warn(`[Top Data] Invalid provider user ID for removal: ${providerUserId}`)
+      return
+    }
+
+    logger.info(`[Top Data] Removing user ID: ${numericId}`)
 
     try {
-      // Comando para remover da lista branca (exemplo simplificado)
       const packet = Buffer.from([
         0x02,
         0x00,
@@ -337,9 +334,10 @@ export class TopDataAdapter implements TurnstileAdapter {
         0x03
       ])
       this.sendCommand(packet)
-      logger.info(`[Top Data] ✅ Comando de remoção enviado.`)
+      logger.info(`[Top Data] ✅ Remove command sent.`)
     } catch (error) {
-      logger.error(`[Top Data] ❌ Erro ao remover usuário: ${error}`)
+      const msg = error instanceof Error ? error.message : String(error)
+      logger.error(`[Top Data] ❌ Error removing user: ${msg}`)
     }
   }
 

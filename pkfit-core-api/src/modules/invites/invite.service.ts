@@ -331,7 +331,7 @@ export async function redeemInvite(input: RedeemInviteInput): Promise<RedeemInvi
               endDate.setMonth(startDate.getMonth() + plan.duration_in_months);
             }
 
-            await supabase.from('student_plans').insert({
+            const { error: planError } = await supabase.from('student_plans').insert({
               student_id: userId,
               plan_id: metadata.plan_id,
               academy_id: academyId,
@@ -340,9 +340,13 @@ export async function redeemInvite(input: RedeemInviteInput): Promise<RedeemInvi
               is_active: true
             });
             
+            if (planError) {
+              console.error('[INVITE] Error inserting student_plan:', planError);
+            }
+
             // Register initial payment
             if (metadata.payment_status && metadata.payment_method) {
-               await supabase.from('payments').insert({
+               const { error: paymentError } = await supabase.from('payments').insert({
                  academy_id: academyId,
                  student_id: userId,
                  plan_id: metadata.plan_id,
@@ -352,6 +356,10 @@ export async function redeemInvite(input: RedeemInviteInput): Promise<RedeemInvi
                  payment_date: startDate.toISOString().split('T')[0],
                  description: 'Mensalidade inicial (Matrícula)'
                });
+               
+               if (paymentError) {
+                 console.error('[INVITE] Error inserting initial payment:', paymentError);
+               }
             }
           }
         }

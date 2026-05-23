@@ -164,22 +164,27 @@ export default function LoginPage() {
         }
     };
 
-    const handleInviteSuccess = (data: { user_id: string; role: string; name: string }) => {
-        // Set user in context to automatically redirect to dashboard
-        setUser({ 
-            id: data.user_id, 
-            role: data.role as any, 
-            email: '', 
-            name: data.name,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        });
+    const handleInviteSuccess = async (data: { user_id: string; role: string; name: string; email?: string; password?: string }) => {
+        if (data.email && data.password) {
+            setIsLoading(true);
+            try {
+                const result = await login(data.email, data.password);
+                if (result.success && result.data) {
+                    setUser(result.data);
+                    sessionStorage.setItem('welcome_name', data.name);
+                    navigate(getDashboardPath(result.data.role));
+                    return;
+                }
+            } catch (err) {
+                console.error("Auto login failed after invite:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        }
         
-        // Save the welcome name to session storage so the dashboard knows it's the first login
-        sessionStorage.setItem('welcome_name', data.name);
-        
-        navigate(getDashboardPath(data.role as any));
+        // Fallback: If login fails or credentials are not present, redirect to login with email step
+        setError('O cadastro foi concluído, mas houve um erro ao logar automaticamente. Por favor, faça login com seu email e senha recém-criados.');
+        setStep('email');
     };
 
     return (

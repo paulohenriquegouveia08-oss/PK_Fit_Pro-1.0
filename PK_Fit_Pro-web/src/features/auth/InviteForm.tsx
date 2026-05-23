@@ -4,7 +4,7 @@ import { redeemInviteCode, type ValidateInviteResult } from '../../shared/servic
 interface InviteFormProps {
     inviteCode: string;
     inviteData: ValidateInviteResult;
-    onSuccess: (data: { user_id: string; role: string; name: string }) => void;
+    onSuccess: (data: { user_id: string; role: string; name: string; email?: string; password?: string }) => void;
     onBack: () => void;
 }
 
@@ -83,11 +83,13 @@ export default function InviteForm({ inviteCode, inviteData, onSuccess, onBack }
             }
 
             // Successfully created account
-            // Pass the user's name to onSuccess to display the welcome animation
+            // Pass the user's name, email and password to onSuccess to perform auto login
             onSuccess({
                 user_id: result.data.user_id,
                 role: result.data.role,
-                name: payload.name
+                name: payload.name,
+                email: payload.email,
+                password: payload.password
             });
         } catch (err) {
             setError('Erro inesperado ao cadastrar. Tente novamente.');

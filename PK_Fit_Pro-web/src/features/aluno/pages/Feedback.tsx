@@ -142,7 +142,10 @@ export default function Feedback() {
         setIsSubmitting(false);
     };
 
-    const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const getInitials = (name?: string) => {
+        if (!name) return '??';
+        return name.split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    };
 
     return (
         <AlunoLayout title="" menuItems={menuItems}> {/*Deixar sem nome*/}

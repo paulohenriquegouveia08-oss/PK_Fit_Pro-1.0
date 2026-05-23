@@ -8,8 +8,9 @@ import { professorMenuItems as menuItems } from '../../../shared/config/professo
 export default function ProfessorPerfil() {
     const { user } = useAuth();
 
-    const getInitials = (name: string): string => {
-        return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+    const getInitials = (name?: string): string => {
+        if (!name) return '??';
+        return name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase();
     };
 
     return (

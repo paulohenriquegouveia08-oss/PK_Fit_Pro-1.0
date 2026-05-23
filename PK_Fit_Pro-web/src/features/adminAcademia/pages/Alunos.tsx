@@ -484,7 +484,17 @@ export default function Alunos() {
             );
 
             if (result.success) {
-                setMessage({ type: 'success', text: 'Aluno atualizado com sucesso!' });
+                // If plan was changed, create new student plan
+                if (editFormData.plan_id && editFormData.plan_id !== selectedStudent.plan_id && academyId) {
+                    const planResult = await createStudentPlan(selectedStudent.id, editFormData.plan_id, academyId);
+                    if (planResult.success) {
+                        setMessage({ type: 'success', text: 'Aluno e plano atualizados com sucesso!' });
+                    } else {
+                        setMessage({ type: 'success', text: 'Aluno atualizado, mas erro ao mudar plano: ' + (planResult.error || '') });
+                    }
+                } else {
+                    setMessage({ type: 'success', text: 'Aluno atualizado com sucesso!' });
+                }
                 setShowEditModal(false);
                 setSelectedStudent(null);
                 loadData();
@@ -1165,46 +1175,43 @@ export default function Alunos() {
                                         </select>
                                     </div>
 
-                                    {/* Current plan info (read-only in edit) */}
-                                    {selectedStudent.plan_name && (
-                                        <div style={{
-                                            background: 'var(--background-secondary)',
-                                            border: '1px solid var(--border-color)',
-                                            borderRadius: 'var(--radius-md)',
-                                            padding: 'var(--spacing-3)',
-                                            marginTop: 'var(--spacing-1)'
-                                        }}>
-                                            <div style={{
-                                                fontSize: 'var(--font-size-sm)',
-                                                fontWeight: 600,
-                                                color: 'var(--text-primary)',
-                                                marginBottom: 'var(--spacing-1)'
-                                            }}>
-                                                📋 Plano Atual: {selectedStudent.plan_name}
-                                            </div>
-                                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
-                                                {formatDate(selectedStudent.plan_start_date || '')} → {formatDate(selectedStudent.plan_end_date || '')}
-                                                {isPlanExpired(selectedStudent.plan_end_date || '') && (
-                                                    <span style={{ color: 'var(--danger-500, #ef4444)', fontWeight: 600, marginLeft: 'var(--spacing-1)' }}>
-                                                        (Expirado)
-                                                    </span>
+                                    {/* Plan Selection (changeable) */}
+                                    <div className="form-group">
+                                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--primary-500)">
+                                                <path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z" />
+                                            </svg>
+                                            Plano
+                                        </label>
+                                        <select
+                                            className="form-input"
+                                            value={editFormData.plan_id}
+                                            onChange={(e) => setEditFormData((prev: any) => ({ ...prev, plan_id: e.target.value }))}
+                                            style={{
+                                                borderColor: editFormData.plan_id !== selectedStudent.plan_id ? 'var(--warning-500, #f59e0b)' : undefined
+                                            }}
+                                        >
+                                            <option value="">Sem plano</option>
+                                            {plans.map(plan => (
+                                                <option key={plan.id} value={plan.id}>
+                                                    {plan.name} — {formatPrice(plan.price)} — {plan.duration_in_months === -1 ? 'Diária' : plan.duration_in_months === 0 ? 'Semanal' : `${plan.duration_in_months} ${plan.duration_in_months === 1 ? 'mês' : 'meses'}`}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {editFormData.plan_id !== selectedStudent.plan_id && editFormData.plan_id && (
+                                            <small style={{ color: 'var(--warning-500, #f59e0b)', fontWeight: 600, marginTop: 'var(--spacing-1)', display: 'block' }}>
+                                                ⚠️ O plano será alterado ao salvar.
+                                            </small>
+                                        )}
+                                        {selectedStudent.plan_name && selectedStudent.plan_end_date && (
+                                            <small style={{ color: 'var(--text-tertiary)', marginTop: 'var(--spacing-1)', display: 'block' }}>
+                                                Plano atual: {selectedStudent.plan_name} ({formatDate(selectedStudent.plan_start_date || '')} → {formatDate(selectedStudent.plan_end_date || '')})
+                                                {isPlanExpired(selectedStudent.plan_end_date) && (
+                                                    <span style={{ color: 'var(--danger-500, #ef4444)', fontWeight: 600 }}> (Expirado)</span>
                                                 )}
-                                            </div>
-                                            {selectedStudent.plan_has_time_restriction && selectedStudent.plan_allowed_start_time && selectedStudent.plan_allowed_end_time && (
-                                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
-                                                    🕒 {formatTime(selectedStudent.plan_allowed_start_time)} - {formatTime(selectedStudent.plan_allowed_end_time)}
-                                                </div>
-                                            )}
-                                            <div style={{
-                                                fontSize: 'var(--font-size-xs)',
-                                                color: 'var(--text-tertiary)',
-                                                marginTop: 'var(--spacing-1)',
-                                                fontStyle: 'italic'
-                                            }}>
-                                                Para alterar o plano, acesse a gestão de planos.
-                                            </div>
-                                        </div>
-                                    )}
+                                            </small>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="modal-footer">
                                     <button

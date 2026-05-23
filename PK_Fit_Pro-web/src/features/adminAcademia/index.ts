@@ -1,0 +1,9 @@
+export { default as Dashboard } from './pages/Dashboard';
+export { default as Professores } from './pages/Professores';
+export { default as Alunos } from './pages/Alunos';
+export { default as Planos } from './pages/Planos';
+export { default as Financeiro } from './pages/Financeiro';
+export { default as Feedbacks } from './pages/Feedbacks';
+export { default as Solicitacoes } from './pages/Solicitacoes';
+export { default as MensalidadesVencendo } from './pages/MensalidadesVencendo';
+export { default as ControleAcesso } from './pages/ControleAcesso';

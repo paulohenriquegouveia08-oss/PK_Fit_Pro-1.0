@@ -25,7 +25,8 @@ export function AlunoLayout({ children, title, menuItems }: AlunoLayoutProps) {
         navigate('/login');
     };
 
-    const getInitials = (name: string): string => {
+    const getInitials = (name?: string | null): string => {
+        if (!name) return 'PK';
         return name
             .split(' ')
             .map(n => n[0])

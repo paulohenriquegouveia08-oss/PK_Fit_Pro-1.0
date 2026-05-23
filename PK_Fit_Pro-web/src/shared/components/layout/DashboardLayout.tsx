@@ -88,7 +88,8 @@ export function DashboardLayout({ children, title, menuItems }: DashboardLayoutP
         return labels[role] || role;
     };
 
-    const getInitials = (name: string): string => {
+    const getInitials = (name?: string | null): string => {
+        if (!name) return 'PK';
         return name
             .split(' ')
             .map(n => n[0])

@@ -333,12 +333,24 @@ export async function deleteAcademyMember(id: string): Promise<ApiResponse<void>
     }
 
     try {
-        // Fetch email before delete (needed for auth cleanup)
+        // Fetch email and photo_url before delete
         const { data: user } = await supabase
             .from('users')
-            .select('email')
+            .select('email, photo_url')
             .eq('id', id)
             .single();
+
+        // Remove photo from storage if exists
+        if (user?.photo_url) {
+            try {
+                const match = user.photo_url.match(/\/avatars\/(.+)$/);
+                if (match) {
+                    await supabase.storage.from('avatars').remove([match[1]]);
+                }
+            } catch (photoErr) {
+                console.error('Error removing photo from storage:', photoErr);
+            }
+        }
 
         // Academy_users and professor_students will cascade delete
         const { error, count } = await supabase

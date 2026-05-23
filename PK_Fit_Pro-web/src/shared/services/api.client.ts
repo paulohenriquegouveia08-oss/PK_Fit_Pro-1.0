@@ -22,9 +22,13 @@ export async function apiRequest<T>(
     const { data: { session } } = await supabase.auth.getSession();
     
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...(options.headers as Record<string, string> || {}),
     };
+
+    // Only set Content-Type for requests that have a body
+    if (options.body) {
+      headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    }
 
     if (session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`;

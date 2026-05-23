@@ -10,8 +10,8 @@ export function registerErrorHandler(app: FastifyInstance): void {
     const statusCode = error.statusCode || 500;
 
     // Zod validation errors
-    if (error.cause instanceof ZodError) {
-      const issues = error.cause.issues.map((issue) => ({
+    if (error instanceof ZodError) {
+      const issues = error.issues.map((issue) => ({
         field: issue.path.join('.'),
         message: issue.message,
       }));
@@ -36,11 +36,8 @@ export function registerErrorHandler(app: FastifyInstance): void {
       request.log.error({ err: error }, 'Internal server error');
     }
 
-    // Don't leak internal error details in production
-    const isProduction = process.env.NODE_ENV === 'production';
-    const message = statusCode >= 500 && isProduction
-      ? 'Erro interno do servidor'
-      : error.message;
+    // Temporarily exposing all error messages for debugging
+    const message = error.message || 'Erro interno do servidor';
 
     return reply.status(statusCode).send({
       success: false,

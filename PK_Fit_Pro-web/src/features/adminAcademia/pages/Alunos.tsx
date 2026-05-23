@@ -22,7 +22,7 @@ import {
     markStudentPlanAsUnpaid,
     getStudentPaymentStatus
 } from '../../../shared/services/financial.service';
-import { createInvite } from '../../../shared/services/invite.service';
+import { createInvite, getAcademyInvites, revokeInvite } from '../../../shared/services/invite.service';
 import type { User, Plan } from '../../../shared/types';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../../../features/adminGlobal/styles/academias.css';
@@ -60,8 +60,11 @@ interface StudentWithPlan extends AcademyMember {
     plan_allowed_start_time?: string;
     plan_allowed_end_time?: string;
     plan_price?: number;
-    payment_status?: 'pago' | 'nao_pago';
+    payment_status?: 'pago' | 'nao_pago' | 'pendente';
     photo_url?: string;
+    is_pending_invite?: boolean;
+    invite_code?: string;
+    invite_id?: string;
 }
 
 export default function Alunos() {
@@ -112,10 +115,11 @@ export default function Alunos() {
 
         setIsLoading(true);
 
-        const [studentsResult, professorsResult, plansResult] = await Promise.all([
+        const [studentsResult, professorsResult, plansResult, invitesResult] = await Promise.all([
             getAcademyMembers(acaId, 'ALUNO'),
             getAcademyProfessors(acaId),
-            getAcademyPlans(acaId, true) // only active plans
+            getAcademyPlans(acaId, true), // only active plans
+            getAcademyInvites(acaId)
         ]);
 
         if (professorsResult.success && professorsResult.data) {
@@ -149,6 +153,29 @@ export default function Alunos() {
                 });
             }
             setStudents(studentsWithPlans);
+        }
+
+        if (invitesResult.success && invitesResult.data) {
+            const pendingStudents: StudentWithPlan[] = invitesResult.data.map(inv => {
+                const meta = inv.metadata || {};
+                return {
+                    id: inv.id,
+                    email: '',
+                    name: meta.student_name || 'Aluno Convidado',
+                    role: 'ALUNO',
+                    is_active: false,
+                    is_pending_invite: true,
+                    invite_code: inv.code,
+                    invite_id: inv.id,
+                    photo_url: meta.photo_url || '',
+                    plan_id: meta.plan_id || '',
+                    plan_name: plansResult.data?.find(p => p.id === meta.plan_id)?.name || '',
+                    payment_status: 'pendente',
+                    created_at: inv.created_at || new Date().toISOString(),
+                    updated_at: inv.updated_at || new Date().toISOString()
+                };
+            });
+            setStudents(prev => [...prev, ...pendingStudents]);
         }
 
         setIsLoading(false);
@@ -780,15 +807,26 @@ export default function Alunos() {
                                     <div className="user-card-email">{aluno.email}</div>
                                     <div className="user-card-meta">
                                         <span className="role-badge aluno">Aluno</span>
-                                        <span
-                                            className={`status-badge ${aluno.is_active ? 'active' : 'inactive'}`}
-                                            onClick={() => handleToggleStatus(aluno)}
-                                            style={{ cursor: 'pointer' }}
-                                            title="Clique para alterar status"
-                                        >
-                                            {aluno.is_active ? 'Ativo' : 'Inativo'}
-                                        </span>
+                                        {aluno.is_pending_invite ? (
+                                            <span className="status-badge" style={{ background: 'var(--warning-100)', color: 'var(--warning-700)' }}>
+                                                Pendente de Cadastro
+                                            </span>
+                                        ) : (
+                                            <span
+                                                className={`status-badge ${aluno.is_active ? 'active' : 'inactive'}`}
+                                                onClick={() => handleToggleStatus(aluno)}
+                                                style={{ cursor: 'pointer' }}
+                                                title="Clique para alterar status"
+                                            >
+                                                {aluno.is_active ? 'Ativo' : 'Inativo'}
+                                            </span>
+                                        )}
                                     </div>
+                                    {aluno.is_pending_invite && (
+                                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary)', marginTop: 'var(--spacing-1)', fontWeight: 'bold' }}>
+                                            Código: {aluno.invite_code}
+                                        </div>
+                                    )}
                                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginTop: 'var(--spacing-1)' }}>
                                         Prof: {aluno.professor_name || 'Não atribuído'}
                                     </div>
@@ -886,27 +924,58 @@ export default function Alunos() {
                                     )}
                                 </div>
                                 <div className="user-card-actions">
-                                    <button
-                                        className="action-btn edit"
-                                        title="Editar"
-                                        onClick={() => handleOpenEditModal(aluno)}
-                                    >
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-                                        </svg>
-                                    </button>
-                                    <button
-                                        className="action-btn delete"
-                                        title="Excluir"
-                                        onClick={() => {
-                                            setSelectedStudent(aluno);
-                                            setShowDeleteModal(true);
-                                        }}
-                                    >
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-                                        </svg>
-                                    </button>
+                                    {aluno.is_pending_invite ? (
+                                        <button
+                                            className="action-btn delete"
+                                            title="Revogar Convite"
+                                            onClick={async () => {
+                                                if (window.confirm('Tem certeza que deseja revogar este convite?')) {
+                                                    try {
+                                                        setIsLoading(true);
+                                                        const res = await revokeInvite(aluno.invite_id!);
+                                                        if (res.success) {
+                                                            setMessage({ type: 'success', text: 'Convite revogado.' });
+                                                            loadData();
+                                                        } else {
+                                                            setMessage({ type: 'error', text: res.error || 'Erro ao revogar.' });
+                                                        }
+                                                    } catch (e) {
+                                                        setMessage({ type: 'error', text: 'Erro ao revogar convite.' });
+                                                    } finally {
+                                                        setIsLoading(false);
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M18 6L6 18M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <button
+                                                className="action-btn edit"
+                                                title="Editar"
+                                                onClick={() => handleOpenEditModal(aluno)}
+                                            >
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                className="action-btn delete"
+                                                title="Excluir"
+                                                onClick={() => {
+                                                    setSelectedStudent(aluno);
+                                                    setShowDeleteModal(true);
+                                                }}
+                                            >
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                                                </svg>
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         ))}

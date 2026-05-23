@@ -79,6 +79,7 @@ export default function Alunos() {
     const [renewFormData, setRenewFormData] = useState<FormData>(initialFormData);
     const [editFormData, setEditFormData] = useState<FormData>(initialFormData);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [academyId, setAcademyId] = useState<string | null>(null);
     const [selectedPlanPreview, setSelectedPlanPreview] = useState<Plan | null>(null);
@@ -524,14 +525,19 @@ export default function Alunos() {
     const handleDelete = async () => {
         if (!selectedStudent) return;
 
-        const result = await deleteAcademyMember(selectedStudent.id);
-        if (result.success) {
-            setMessage({ type: 'success', text: 'Aluno excluído com sucesso!' });
-            setShowDeleteModal(false);
-            setSelectedStudent(null);
-            loadData();
-        } else {
-            setMessage({ type: 'error', text: result.error || 'Erro ao excluir aluno' });
+        setIsDeleting(true);
+        try {
+            const result = await deleteAcademyMember(selectedStudent.id);
+            if (result.success) {
+                setMessage({ type: 'success', text: 'Aluno excluído com sucesso!' });
+                setShowDeleteModal(false);
+                setSelectedStudent(null);
+                loadData();
+            } else {
+                setMessage({ type: 'error', text: result.error || 'Erro ao excluir aluno' });
+            }
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -1256,6 +1262,7 @@ export default function Alunos() {
                                     type="button"
                                     className="btn-cancel"
                                     onClick={() => setShowDeleteModal(false)}
+                                    disabled={isDeleting}
                                 >
                                     Cancelar
                                 </button>
@@ -1263,8 +1270,9 @@ export default function Alunos() {
                                     type="button"
                                     className="btn-delete"
                                     onClick={handleDelete}
+                                    disabled={isDeleting}
                                 >
-                                    Excluir
+                                    {isDeleting ? 'Excluindo...' : 'Excluir'}
                                 </button>
                             </div>
                         </div>

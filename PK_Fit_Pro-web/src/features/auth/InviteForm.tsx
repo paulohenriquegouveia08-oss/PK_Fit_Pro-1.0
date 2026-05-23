@@ -13,16 +13,18 @@ export default function InviteForm({ inviteCode, inviteData, onSuccess, onBack }
     const [error, setError] = useState('');
 
     // Common fields
-    const [name, setName] = useState('');
+    const [name, setName] = useState(inviteData.metadata?.student_name || inviteData.metadata?.teacher_name || '');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [cpf, setCpf] = useState('');
 
     // Specific fields
     const [cnpj, setCnpj] = useState('');
     const [cref, setCref] = useState('');
     const [academyName, setAcademyName] = useState('');
+    const [birthDate, setBirthDate] = useState('');
 
     const [showPassword, setShowPassword] = useState(false);
 
@@ -45,10 +47,11 @@ export default function InviteForm({ inviteCode, inviteData, onSuccess, onBack }
         try {
             const payload: any = {
                 code: inviteCode,
-                name: inviteData.type === 'academy_invite' ? academyName : name, // For academy owner, the main name field is the owner's name. Actually, let's use `name` for the owner, `academyName` for the academy.
+                name: inviteData.type === 'academy_invite' ? academyName : name,
                 email,
                 password,
                 phone,
+                cpf,
             };
 
             if (inviteData.type === 'academy_invite') {
@@ -65,6 +68,11 @@ export default function InviteForm({ inviteCode, inviteData, onSuccess, onBack }
 
             if (inviteData.type === 'teacher_invite') {
                 payload.cref = cref;
+            }
+            
+            if (inviteData.type === 'student_invite') {
+                payload.birth_date = birthDate;
+                // Photo URL is passed implicitly via backend merging invite metadata
             }
 
             const result = await redeemInviteCode(payload);
@@ -90,6 +98,7 @@ export default function InviteForm({ inviteCode, inviteData, onSuccess, onBack }
 
     const isAcademy = inviteData.type === 'academy_invite';
     const isTeacher = inviteData.type === 'teacher_invite';
+    const isStudent = inviteData.type === 'student_invite';
 
     return (
         <form className="login-form" onSubmit={handleSubmit}>
@@ -140,11 +149,27 @@ export default function InviteForm({ inviteCode, inviteData, onSuccess, onBack }
                     value={name} onChange={(e) => setName(e.target.value)} />
             </div>
 
+            {(isTeacher || isStudent) && (
+                <div className="form-group">
+                    <label className="form-label" htmlFor="cpf">CPF</label>
+                    <input id="cpf" type="text" className="form-input" required
+                        value={cpf} onChange={(e) => setCpf(e.target.value)} />
+                </div>
+            )}
+
             {isTeacher && (
                 <div className="form-group">
                     <label className="form-label" htmlFor="cref">CREF</label>
                     <input id="cref" type="text" className="form-input" required
                         value={cref} onChange={(e) => setCref(e.target.value)} />
+                </div>
+            )}
+            
+            {isStudent && (
+                <div className="form-group">
+                    <label className="form-label" htmlFor="birthDate">Data de Nascimento</label>
+                    <input id="birthDate" type="date" className="form-input" required
+                        value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
                 </div>
             )}
 

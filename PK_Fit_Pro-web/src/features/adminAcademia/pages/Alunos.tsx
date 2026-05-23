@@ -4,7 +4,6 @@ import { DashboardLayout } from '../../../shared/components/layout';
 import {
     getAcademyMembers,
     getAcademyProfessors,
-    createAcademyMember,
     updateAcademyMember,
     toggleMemberStatus,
     deleteAcademyMember,
@@ -23,7 +22,7 @@ import {
     markStudentPlanAsUnpaid,
     getStudentPaymentStatus
 } from '../../../shared/services/financial.service';
-import { triggerFaceSyncForUser } from '../../../shared/services/faceSync.service';
+import { createInvite } from '../../../shared/services/invite.service';
 import type { User, Plan } from '../../../shared/types';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../../../features/adminGlobal/styles/academias.css';
@@ -32,12 +31,12 @@ import { adminAcademiaMenuItems as menuItems } from '../../../shared/config/admi
 
 interface FormData {
     name: string;
-    email: string;
-    phone: string;
+    email?: string;
+    phone?: string;
     professor_id: string;
     plan_id: string;
-    payment_method: 'dinheiro' | 'pix' | 'credito' | 'debito' | 'pagar_depois';
-    photo_url: string;
+    payment_method?: 'dinheiro' | 'pix' | 'credito' | 'debito' | 'pagar_depois';
+    photo_url?: string;
 }
 
 const initialFormData: FormData = {
@@ -47,7 +46,6 @@ const initialFormData: FormData = {
     professor_id: '',
     plan_id: '',
     payment_method: 'pagar_depois',
-    photo_url: ''
 };
 
 // Student with plan info
@@ -84,6 +82,7 @@ export default function Alunos() {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [academyId, setAcademyId] = useState<string | null>(null);
     const [selectedPlanPreview, setSelectedPlanPreview] = useState<Plan | null>(null);
+    const [generatedCode, setGeneratedCode] = useState<string | null>(null);
     
     // Camera state
     const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -208,54 +207,28 @@ export default function Alunos() {
                 }
             }
 
-            const result = await createAcademyMember({
-                name: formData.name,
-                email: formData.email,
-                phone: formData.phone || undefined,
-                role: 'ALUNO',
-                academy_id: academyId,
-                professor_id: formData.professor_id || undefined,
-                photo_url: photoUrlToSave || undefined
+            const result = await createInvite({
+                type: 'student_invite',
+                metadata: {
+                    student_name: formData.name,
+                    professor_id: formData.professor_id || undefined,
+                    plan_id: formData.plan_id,
+                    photo_url: photoUrlToSave || undefined
+                },
+                academy_id: academyId
             });
 
             if (result.success && result.data) {
-                // ... (existing plan logic)
-                const planResult = await createStudentPlan(result.data.id, formData.plan_id, academyId);
-
-                // Trigger face sync if photo was uploaded
-                if (photoUrlToSave) {
-                    await triggerFaceSyncForUser(result.data.id, formData.name, photoUrlToSave);
-                }
-
-                if (planResult.success) {
-                    if (formData.payment_method !== 'pagar_depois' && selectedPlanPreview?.price) {
-                        const payResult = await markStudentPlanAsPaid(
-                            result.data.id,
-                            formData.plan_id,
-                            academyId,
-                            selectedPlanPreview.price,
-                            formData.payment_method
-                        );
-                        if (payResult.success) {
-                            setMessage({ type: 'success', text: 'Aluno criado, plano vinculado e pagamento registrado com sucesso!' });
-                        } else {
-                            setMessage({ type: 'success', text: 'Aluno criado e plano vinculado, mas erro ao registrar pagamento.' });
-                        }
-                    } else {
-                        setMessage({ type: 'success', text: 'Aluno criado com sucesso.' });
-                    }
-                }
-                
+                setGeneratedCode(result.data.code);
+                setMessage({ type: 'success', text: 'Convite gerado com sucesso!' });
                 setFormData(initialFormData);
                 setSelectedPlanPreview(null);
-                setShowModal(false);
-                loadData();
             } else {
-                setMessage({ type: 'error', text: result.error || 'Erro ao criar aluno' });
+                setMessage({ type: 'error', text: result.error || 'Erro ao gerar convite' });
             }
         } catch (error) {
             console.error('Error in handleSubmit:', error);
-            setMessage({ type: 'error', text: 'Erro ao processar cadastro' });
+            setMessage({ type: 'error', text: 'Erro ao processar convite' });
         } finally {
             setIsSubmitting(false);
         }
@@ -503,7 +476,7 @@ export default function Alunos() {
                 selectedStudent.id,
                 {
                     name: editFormData.name,
-                    email: editFormData.email.toLowerCase(),
+                    email: (editFormData.email || '').toLowerCase(),
                     phone: editFormData.phone || undefined,
                     photo_url: photoUrlToSave || undefined
                 },
@@ -708,7 +681,7 @@ export default function Alunos() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                         </svg>
-                        Novo Aluno
+                        Gerar Convite
                     </button>
                 </div>
 
@@ -753,7 +726,7 @@ export default function Alunos() {
                             <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
                         </svg>
                         <h3>Nenhum aluno encontrado</h3>
-                        <p>Clique em "Novo Aluno" para adicionar.</p>
+                        <p>Clique em "Gerar Convite" para adicionar.</p>
                     </div>
                 ) : (
                     <div className="users-grid">
@@ -908,220 +881,180 @@ export default function Alunos() {
                     </div>
                 )}
 
-                {/* Modal Novo Aluno */}
+                {/* Modal Novo Aluno (Gerar Convite) */}
                 {showModal && (
-                    <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                    <div className="modal-overlay" onClick={() => { setShowModal(false); setGeneratedCode(null); setMessage(null); setSelectedPlanPreview(null); }}>
                         <div className="modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title">Novo Aluno</h3>
-                                <button className="modal-close" onClick={() => setShowModal(false)}>
+                                <h3 className="modal-title">Gerar Convite de Aluno</h3>
+                                <button className="modal-close" onClick={() => { setShowModal(false); setGeneratedCode(null); setMessage(null); setSelectedPlanPreview(null); }}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                                     </svg>
                                 </button>
                             </div>
-                            <form onSubmit={handleSubmit}>
-                                <div className="modal-body">
-                                    {/* Camera Section */}
-                                    <div className="form-group" style={{ marginBottom: 'var(--spacing-4)' }}>
-                                        <label className="form-label">Foto do Aluno</label>
-                                        <div className="camera-container" style={{ 
-                                            width: '100%', 
-                                            aspectRatio: '1', 
-                                            maxHeight: '280px',
-                                            background: 'var(--gray-900)', 
-                                            borderRadius: 'var(--radius-lg)', 
-                                            overflow: 'hidden',
-                                            position: 'relative',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}>
-                                            {isCameraOpen ? (
-                                                <>
-                                                    <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                    <button type="button" onClick={takePhoto} style={{ position: 'absolute', bottom: '15px', padding: '10px 20px', borderRadius: 'var(--radius-full)', background: 'var(--primary-500)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-                                                        📸 Capturar agora
-                                                    </button>
-                                                </>
-                                            ) : capturedImage ? (
-                                                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                                                    <img src={capturedImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                    <div style={{ position: 'absolute', bottom: '15px', left: '0', right: '0', display: 'flex', justifyContent: 'center', gap: '10px' }}>
-                                                        <button type="button" onClick={startCamera} style={{ padding: '8px 15px', borderRadius: 'var(--radius-full)', background: 'rgba(255,255,255,0.9)', color: 'var(--gray-800)', border: 'none', fontWeight: 600, cursor: 'pointer' }}>
-                                                            🔄 Refazer
-                                                        </button>
-                                                        <button type="button" onClick={handleRemovePhoto} style={{ padding: '8px 15px', borderRadius: 'var(--radius-full)', background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>
-                                                            🗑️ Remover
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <button type="button" onClick={startCamera} className="btn-camera-start" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
-                                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                                                    </svg>
-                                                    <span>Clique para tirar foto</span>
-                                                </button>
-                                            )}
-                                        </div>
-                                        {cameraError && <p style={{ color: 'var(--error-500)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--spacing-2)' }}>⚠️ {cameraError}</p>}
-                                        <canvas ref={canvasRef} style={{ display: 'none' }} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Nome Completo *</label>
-                                        <input
-                                            type="text"
-                                            name="name"
-                                            className="form-input"
-                                            placeholder="Nome completo"
-                                            value={formData.name}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Email *</label>
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            className="form-input"
-                                            placeholder="email@exemplo.com"
-                                            value={formData.email}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Telefone</label>
-                                        <input
-                                            type="tel"
-                                            name="phone"
-                                            className="form-input"
-                                            placeholder="(00) 00000-0000"
-                                            value={formData.phone}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Professor Responsável</label>
-                                        <select
-                                            name="professor_id"
-                                            className="form-input"
-                                            value={formData.professor_id}
-                                            onChange={handleInputChange}
-                                        >
-                                            <option value="">Selecione um professor</option>
-                                            {professors.map(prof => (
-                                                <option key={prof.id} value={prof.id}>{prof.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
 
-                                    {/* Plan Selection */}
-                                    <div className="form-group">
-                                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--primary-500)">
-                                                <path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z" />
-                                            </svg>
-                                            Plano *
-                                        </label>
-                                        <select
-                                            name="plan_id"
-                                            className="form-input"
-                                            value={formData.plan_id}
-                                            onChange={handleInputChange}
-                                            required
-                                            style={{
-                                                borderColor: !formData.plan_id ? undefined : 'var(--primary-500)'
-                                            }}
-                                        >
-                                            <option value="">Selecione um plano</option>
-                                            {plans.map(plan => (
-                                                <option key={plan.id} value={plan.id}>
-                                                    {plan.name} — {formatPrice(plan.price)} — {plan.duration_in_months === -1 ? 'Diária' : plan.duration_in_months === 0 ? 'Semanal' : `${plan.duration_in_months} ${plan.duration_in_months === 1 ? 'mês' : 'meses'}`}
-                                                </option>
-                                            ))}
-                                        </select>
+                            {generatedCode ? (
+                                <div className="modal-body" style={{ textAlign: 'center' }}>
+                                    <div className="success-icon" style={{ color: 'var(--success-color)', marginBottom: '1rem' }}>
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                                        </svg>
                                     </div>
-
-                                    {/* Plan Preview */}
-                                    {renderPlanPreview()}
-
-                                    {/* Initial Payment Selection */}
-                                    {formData.plan_id && selectedPlanPreview && (
-                                        <div className="form-group" style={{ marginTop: 'var(--spacing-4)', paddingTop: 'var(--spacing-4)', borderTop: '1px solid var(--border-color)' }}>
-                                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--success-500)">
-                                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z" />
-                                                </svg>
-                                                Pagamento da Primeira Mensalidade (Opcional)
-                                            </label>
-                                            <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-2)' }}>
-                                                Selecione como o aluno pagou a primeira mensalidade para registrar agora.
-                                            </p>
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 'var(--spacing-2)' }}>
-                                                {[
-                                                    { id: 'pagar_depois', label: 'Pagar Depois', icon: '⏳', default: true },
-                                                    { id: 'pix', label: 'PIX', icon: '📱' },
-                                                    { id: 'credito', label: 'Crédito', icon: '💳' },
-                                                    { id: 'debito', label: 'Débito', icon: '💳' },
-                                                    { id: 'dinheiro', label: 'Dinheiro', icon: '💵' }
-                                                ].map(method => (
-                                                    <div
-                                                        key={method.id}
-                                                        onClick={() => setFormData(prev => ({ ...prev, payment_method: method.id as any }))}
-                                                        style={{
-                                                            padding: 'var(--spacing-2)',
-                                                            border: `1px solid ${formData.payment_method === method.id ? (method.id === 'pagar_depois' ? 'var(--gray-500)' : 'var(--success-500)') : 'var(--border-color)'}`,
-                                                            borderRadius: 'var(--radius-md)',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            gap: 'var(--spacing-1)',
-                                                            background: formData.payment_method === method.id
-                                                                ? (method.id === 'pagar_depois' ? 'var(--gray-100)' : 'var(--success-50)')
-                                                                : 'var(--background-primary)',
-                                                            transition: 'all 0.2s ease',
-                                                            textAlign: 'center'
-                                                        }}
-                                                    >
-                                                        <span style={{ fontSize: '1.2rem' }}>{method.icon}</span>
-                                                        <span style={{
-                                                            fontSize: 'var(--font-size-xs)',
-                                                            fontWeight: formData.payment_method === method.id ? 600 : 400,
-                                                            color: formData.payment_method === method.id
-                                                                ? (method.id === 'pagar_depois' ? 'var(--gray-700)' : 'var(--success-700)')
-                                                                : 'var(--text-primary)'
-                                                        }}>
-                                                            {method.label}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="modal-footer">
+                                    <h4 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>Código Gerado com Sucesso!</h4>
+                                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                                        Envie este código para o aluno concluir o cadastro.
+                                    </p>
+                                    <div className="code-display" style={{ 
+                                        background: 'var(--bg-tertiary)', 
+                                        padding: '1rem', 
+                                        borderRadius: '8px',
+                                        fontSize: '1.5rem',
+                                        letterSpacing: '2px',
+                                        fontWeight: 'bold',
+                                        marginBottom: '1.5rem'
+                                    }}>
+                                        {generatedCode}
+                                    </div>
                                     <button
-                                        type="button"
-                                        className="btn-cancel"
-                                        onClick={() => { setShowModal(false); setSelectedPlanPreview(null); }}
-                                        disabled={isSubmitting}
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        type="submit"
                                         className="btn-submit"
-                                        disabled={isSubmitting}
+                                        style={{ width: '100%' }}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(generatedCode);
+                                            setMessage({ type: 'success', text: 'Código copiado!' });
+                                        }}
                                     >
-                                        {isSubmitting ? 'Criando...' : 'Criar Aluno'}
+                                        Copiar Código
                                     </button>
                                 </div>
-                            </form>
+                            ) : (
+                                <form onSubmit={handleSubmit}>
+                                    <div className="modal-body">
+                                        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                                            Gere um código de convite para que o aluno possa criar sua conta. A foto capturada será usada na catraca.
+                                        </p>
+                                        {/* Camera Section */}
+                                        <div className="form-group" style={{ marginBottom: 'var(--spacing-4)' }}>
+                                            <label className="form-label">Foto do Aluno (Para Catraca)</label>
+                                            <div className="camera-container" style={{ 
+                                                width: '100%', 
+                                                aspectRatio: '1', 
+                                                maxHeight: '280px',
+                                                background: 'var(--gray-900)', 
+                                                borderRadius: 'var(--radius-lg)', 
+                                                overflow: 'hidden',
+                                                position: 'relative',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                {isCameraOpen ? (
+                                                    <>
+                                                        <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                        <button type="button" onClick={takePhoto} style={{ position: 'absolute', bottom: '15px', padding: '10px 20px', borderRadius: 'var(--radius-full)', background: 'var(--primary-500)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+                                                            📸 Capturar agora
+                                                        </button>
+                                                    </>
+                                                ) : capturedImage ? (
+                                                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                                                        <img src={capturedImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                        <div style={{ position: 'absolute', bottom: '15px', left: '0', right: '0', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                                                            <button type="button" onClick={startCamera} style={{ padding: '8px 15px', borderRadius: 'var(--radius-full)', background: 'rgba(255,255,255,0.9)', color: 'var(--gray-800)', border: 'none', fontWeight: 600, cursor: 'pointer' }}>
+                                                                🔄 Refazer
+                                                            </button>
+                                                            <button type="button" onClick={handleRemovePhoto} style={{ padding: '8px 15px', borderRadius: 'var(--radius-full)', background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>
+                                                                🗑️ Remover
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <button type="button" onClick={startCamera} className="btn-camera-start" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
+                                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                                        </svg>
+                                                        <span>Clique para tirar foto</span>
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {cameraError && <p style={{ color: 'var(--error-500)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--spacing-2)' }}>⚠️ {cameraError}</p>}
+                                            <canvas ref={canvasRef} style={{ display: 'none' }} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Identificação (Nome do Aluno) *</label>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                className="form-input"
+                                                placeholder="Nome do aluno para controle"
+                                                value={formData.name}
+                                                onChange={handleInputChange}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Professor Responsável</label>
+                                            <select
+                                                name="professor_id"
+                                                className="form-input"
+                                                value={formData.professor_id}
+                                                onChange={handleInputChange}
+                                            >
+                                                <option value="">Selecione um professor</option>
+                                                {professors.map(prof => (
+                                                    <option key={prof.id} value={prof.id}>{prof.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Plan Selection */}
+                                        <div className="form-group">
+                                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--primary-500)">
+                                                    <path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z" />
+                                                </svg>
+                                                Plano Inicial *
+                                            </label>
+                                            <select
+                                                name="plan_id"
+                                                className="form-input"
+                                                value={formData.plan_id}
+                                                onChange={handleInputChange}
+                                                required
+                                                style={{
+                                                    borderColor: !formData.plan_id ? undefined : 'var(--primary-500)'
+                                                }}
+                                            >
+                                                <option value="">Selecione um plano</option>
+                                                {plans.map(plan => (
+                                                    <option key={plan.id} value={plan.id}>
+                                                        {plan.name} — {formatPrice(plan.price)} — {plan.duration_in_months === -1 ? 'Diária' : plan.duration_in_months === 0 ? 'Semanal' : `${plan.duration_in_months} ${plan.duration_in_months === 1 ? 'mês' : 'meses'}`}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Plan Preview */}
+                                        {renderPlanPreview()}
+                                    </div>
+                                    <div className="modal-footer">
+                                        <button
+                                            type="button"
+                                            className="btn-cancel"
+                                            onClick={() => { setShowModal(false); setGeneratedCode(null); setMessage(null); setSelectedPlanPreview(null); }}
+                                            disabled={isSubmitting}
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="btn-submit"
+                                            disabled={isSubmitting}
+                                        >
+                                            {isSubmitting ? 'Gerando...' : 'Gerar Convite'}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
                         </div>
                     </div>
                 )}

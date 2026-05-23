@@ -219,14 +219,26 @@ export async function redeemInvite(input: RedeemInviteInput): Promise<RedeemInvi
     // the role is correct (trigger uses metadata, but we enforce here)
     await new Promise((resolve) => setTimeout(resolve, 500));
 
+    const updatePayload: any = { 
+      role, 
+      name: input.name,
+      phone: input.phone || null,
+      cpf: (input as any).cpf || null,
+      cref: input.cref || null
+    };
+
+    if (role === 'ALUNO') {
+      updatePayload.birth_date = (input as any).birth_date || null;
+      // Get photo_url from invite metadata if present
+      const photoUrl = (invite.metadata as any)?.photo_url;
+      if (photoUrl) {
+        updatePayload.photo_url = photoUrl;
+      }
+    }
+
     await supabase
       .from('users')
-      .update({ 
-        role, 
-        name: input.name,
-        phone: input.phone || null,
-        cref: input.cref || null
-      })
+      .update(updatePayload)
       .eq('id', userId);
 
     // 6. Handle academy creation or linking

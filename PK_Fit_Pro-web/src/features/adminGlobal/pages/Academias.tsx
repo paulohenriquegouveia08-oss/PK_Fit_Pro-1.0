@@ -477,6 +477,10 @@ export default function Academias() {
                                             <span className="details-value">{selectedAcademy.name}</span>
                                         </div>
                                         <div className="details-item">
+                                            <span className="details-label">CNPJ</span>
+                                            <span className="details-value">{selectedAcademy.cnpj || 'Não informado'}</span>
+                                        </div>
+                                        <div className="details-item">
                                             <span className="details-label">Email</span>
                                             <span className="details-value">{selectedAcademy.email || 'Não informado'}</span>
                                         </div>

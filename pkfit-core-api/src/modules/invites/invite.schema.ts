@@ -67,6 +67,8 @@ export const redeemInviteSchema = z.object({
     .optional(),
   // For student and teacher
   phone: z.string().max(20).optional(),
+  cpf: z.string().max(20).optional(),
+  birth_date: z.string().optional(),
   cref: z.string().max(50).optional(),
 });
 

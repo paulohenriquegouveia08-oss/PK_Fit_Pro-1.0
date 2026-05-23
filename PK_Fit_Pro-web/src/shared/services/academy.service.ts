@@ -12,6 +12,7 @@ const USE_CORE_API = import.meta.env.VITE_USE_CORE_API === 'true';
 export interface Academy {
     id: string;
     name: string;
+    cnpj: string | null;
     email: string | null;
     phone: string | null;
     address: string | null;

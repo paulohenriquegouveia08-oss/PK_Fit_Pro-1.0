@@ -1,0 +1,5 @@
+-- Add cpf, birth_date, photo_url and cref to users table
+ALTER TABLE users ADD COLUMN IF NOT EXISTS cpf VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url VARCHAR(1000);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS cref VARCHAR(50);

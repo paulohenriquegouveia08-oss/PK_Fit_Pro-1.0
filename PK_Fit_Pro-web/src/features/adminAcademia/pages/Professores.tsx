@@ -2,13 +2,13 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { DashboardLayout } from '../../../shared/components/layout';
 import {
     getAcademyMembers,
-    createAcademyMember,
     updateAcademyMember,
     toggleMemberStatus,
     deleteAcademyMember,
     getCurrentAcademyId,
     type AcademyMember
 } from '../../../shared/services/academyMember.service';
+import { createInvite } from '../../../shared/services/invite.service';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../../../features/adminGlobal/styles/academias.css';
 import '../../../features/adminGlobal/styles/usuarios.css';
@@ -16,14 +16,10 @@ import { adminAcademiaMenuItems as menuItems } from '../../../shared/config/admi
 
 interface FormData {
     name: string;
-    email: string;
-    phone: string;
 }
 
 const initialFormData: FormData = {
     name: '',
-    email: '',
-    phone: ''
 };
 
 export default function Professores() {
@@ -35,10 +31,11 @@ export default function Professores() {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [selectedProfessor, setSelectedProfessor] = useState<AcademyMember | null>(null);
     const [formData, setFormData] = useState<FormData>(initialFormData);
-    const [editFormData, setEditFormData] = useState<FormData>(initialFormData);
+    const [editFormData, setEditFormData] = useState<any>({ name: '', email: '', phone: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [academyId, setAcademyId] = useState<string | null>(null);
+    const [generatedCode, setGeneratedCode] = useState<string | null>(null);
 
     // Load professors
     const loadProfessors = async () => {
@@ -73,7 +70,6 @@ export default function Professores() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // Handle create professor
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!academyId) {
@@ -84,21 +80,20 @@ export default function Professores() {
         setIsSubmitting(true);
         setMessage(null);
 
-        const result = await createAcademyMember({
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone || undefined,
-            role: 'PROFESSOR',
+        const result = await createInvite({
+            type: 'teacher_invite',
+            metadata: {
+                teacher_name: formData.name
+            },
             academy_id: academyId
         });
 
-        if (result.success) {
-            setMessage({ type: 'success', text: 'Professor criado com sucesso!' });
+        if (result.success && result.data) {
+            setGeneratedCode(result.data.code);
+            setMessage({ type: 'success', text: 'Convite gerado com sucesso!' });
             setFormData(initialFormData);
-            setShowModal(false);
-            loadProfessors();
         } else {
-            setMessage({ type: 'error', text: result.error || 'Erro ao criar professor' });
+            setMessage({ type: 'error', text: result.error || 'Erro ao gerar convite' });
         }
 
         setIsSubmitting(false);
@@ -196,7 +191,7 @@ export default function Professores() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                         </svg>
-                        Novo Professor
+                        Gerar Convite
                     </button>
                 </div>
 
@@ -231,7 +226,7 @@ export default function Professores() {
                             <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z" />
                         </svg>
                         <h3>Nenhum professor encontrado</h3>
-                        <p>Clique em "Novo Professor" para adicionar.</p>
+                        <p>Clique em "Gerar Convite" para adicionar.</p>
                     </div>
                 ) : (
                     <div className="users-grid">
@@ -288,72 +283,88 @@ export default function Professores() {
 
                 {/* Modal Novo Professor */}
                 {showModal && (
-                    <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                    <div className="modal-overlay" onClick={() => { setShowModal(false); setGeneratedCode(null); setMessage(null); }}>
                         <div className="modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title">Novo Professor</h3>
-                                <button className="modal-close" onClick={() => setShowModal(false)}>
+                                <h3 className="modal-title">Gerar Convite de Professor</h3>
+                                <button className="modal-close" onClick={() => { setShowModal(false); setGeneratedCode(null); setMessage(null); }}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                                     </svg>
                                 </button>
                             </div>
-                            <form onSubmit={handleSubmit}>
-                                <div className="modal-body">
-                                    <div className="form-group">
-                                        <label className="form-label">Nome Completo *</label>
-                                        <input
-                                            type="text"
-                                            name="name"
-                                            className="form-input"
-                                            placeholder="Nome completo"
-                                            value={formData.name}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
+
+                            {generatedCode ? (
+                                <div className="modal-body" style={{ textAlign: 'center' }}>
+                                    <div className="success-icon" style={{ color: 'var(--success-color)', marginBottom: '1rem' }}>
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                                        </svg>
                                     </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Email *</label>
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            className="form-input"
-                                            placeholder="email@exemplo.com"
-                                            value={formData.email}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
+                                    <h4 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>Código Gerado com Sucesso!</h4>
+                                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                                        Envie este código para o professor concluir o cadastro.
+                                    </p>
+                                    <div className="code-display" style={{ 
+                                        background: 'var(--bg-tertiary)', 
+                                        padding: '1rem', 
+                                        borderRadius: '8px',
+                                        fontSize: '1.5rem',
+                                        letterSpacing: '2px',
+                                        fontWeight: 'bold',
+                                        marginBottom: '1.5rem'
+                                    }}>
+                                        {generatedCode}
                                     </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Telefone</label>
-                                        <input
-                                            type="tel"
-                                            name="phone"
-                                            className="form-input"
-                                            placeholder="(00) 00000-0000"
-                                            value={formData.phone}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="modal-footer">
                                     <button
-                                        type="button"
-                                        className="btn-cancel"
-                                        onClick={() => setShowModal(false)}
-                                        disabled={isSubmitting}
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        type="submit"
                                         className="btn-submit"
-                                        disabled={isSubmitting}
+                                        style={{ width: '100%' }}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(generatedCode);
+                                            setMessage({ type: 'success', text: 'Código copiado!' });
+                                        }}
                                     >
-                                        {isSubmitting ? 'Criando...' : 'Criar Professor'}
+                                        Copiar Código
                                     </button>
                                 </div>
-                            </form>
+                            ) : (
+                                <form onSubmit={handleSubmit}>
+                                    <div className="modal-body">
+                                        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                                            Gere um código de convite para que o professor possa criar sua própria conta e se vincular à sua academia.
+                                        </p>
+                                        <div className="form-group">
+                                            <label className="form-label">Identificação (Nome do Professor) *</label>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                className="form-input"
+                                                placeholder="Nome do professor para controle"
+                                                value={formData.name}
+                                                onChange={handleInputChange}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="modal-footer">
+                                        <button
+                                            type="button"
+                                            className="btn-cancel"
+                                            onClick={() => { setShowModal(false); setGeneratedCode(null); setMessage(null); }}
+                                            disabled={isSubmitting}
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="btn-submit"
+                                            disabled={isSubmitting}
+                                        >
+                                            {isSubmitting ? 'Gerando...' : 'Gerar Convite'}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
                         </div>
                     </div>
                 )}
@@ -379,7 +390,7 @@ export default function Professores() {
                                             className="form-input"
                                             placeholder="Nome completo"
                                             value={editFormData.name}
-                                            onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                                            onChange={(e) => setEditFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                                             required
                                         />
                                     </div>
@@ -390,7 +401,7 @@ export default function Professores() {
                                             className="form-input"
                                             placeholder="email@exemplo.com"
                                             value={editFormData.email}
-                                            onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
+                                            onChange={(e) => setEditFormData((prev: any) => ({ ...prev, email: e.target.value }))}
                                             required
                                         />
                                     </div>
@@ -401,7 +412,7 @@ export default function Professores() {
                                             className="form-input"
                                             placeholder="(00) 00000-0000"
                                             value={editFormData.phone}
-                                            onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                            onChange={(e) => setEditFormData((prev: any) => ({ ...prev, phone: e.target.value }))}
                                         />
                                     </div>
                                 </div>

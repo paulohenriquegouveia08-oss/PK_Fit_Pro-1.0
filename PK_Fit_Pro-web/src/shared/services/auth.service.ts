@@ -234,6 +234,12 @@ export async function createPassword(
         }
 
         const { password_hash, ...safeUser } = data;
+        
+        // If name is null in public.users (due to fallback during registration), use the name from auth metadata
+        if (!safeUser.name && authData.user.user_metadata?.name) {
+            safeUser.name = authData.user.user_metadata.name;
+        }
+
         const userWithAcademy = { ...safeUser, academy_id: academyId };
 
         // Store in localStorage with 7 days expiration
@@ -370,6 +376,12 @@ export async function login(
 
         // Store user in persistent storage (remove password_hash, add academy_id)
         const { password_hash, ...safeUser } = user;
+        
+        // If name is null in public.users, fallback to auth metadata
+        if (!safeUser.name && authData?.user?.user_metadata?.name) {
+            safeUser.name = authData.user.user_metadata.name;
+        }
+
         const userWithAcademy = { ...safeUser, academy_id: academyId };
 
         // Store in localStorage with 7 days expiration

@@ -82,7 +82,7 @@ export async function deleteUser(input: DeleteUserInput, actor: AuthenticatedUse
 
   // 2. We don't allow deleting admins through this endpoint to prevent locking out
   const supabase = getSupabaseAdmin();
-  const { data: user } = await supabase.from('users').select('role').eq('id', input.id).single();
+  const { data: user } = await supabase.from('users').select('role').eq('id', input.id).maybeSingle();
   
   if (user?.role === 'ADMIN_GLOBAL' || user?.role === 'ADMIN_ACADEMIA') {
     throw new Error('Não é possível deletar administradores por esta rota');
@@ -90,7 +90,7 @@ export async function deleteUser(input: DeleteUserInput, actor: AuthenticatedUse
 
   // 3. Try to remove photo from storage if exists (column may not exist in DB yet)
   try {
-    const { data: userData } = await supabase.from('users').select('photo_url').eq('id', input.id).single();
+    const { data: userData } = await supabase.from('users').select('photo_url').eq('id', input.id).maybeSingle();
     if (userData?.photo_url) {
       const match = userData.photo_url.match(/\/avatars\/(.+)$/);
       if (match) {

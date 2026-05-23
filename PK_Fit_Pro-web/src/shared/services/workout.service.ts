@@ -144,9 +144,9 @@ export async function getStudentWorkout(studentId: string): Promise<ApiResponse<
             `)
             .eq('student_id', studentId)
             .eq('is_active', true)
-            .single();
+            .maybeSingle();
 
-        if (workoutError && workoutError.code !== 'PGRST116') throw workoutError;
+        if (workoutError) throw workoutError;
 
         if (!workout) {
             return { success: true, data: null };

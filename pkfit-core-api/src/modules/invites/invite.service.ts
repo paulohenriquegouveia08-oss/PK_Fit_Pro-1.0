@@ -236,10 +236,21 @@ export async function redeemInvite(input: RedeemInviteInput): Promise<RedeemInvi
       }
     }
 
-    await supabase
+    // Try updating with all fields
+    const { error: updateError } = await supabase
       .from('users')
       .update(updatePayload)
       .eq('id', userId);
+
+    if (updateError) {
+      // If error is about missing column (e.g., photo_url, cpf, cref not migrated yet),
+      // fallback to basic fields so the user creation doesn't fail completely with a 500.
+      console.warn('[INVITE] Update failed (possibly missing columns in DB). Falling back to basic update.', updateError);
+      await supabase
+        .from('users')
+        .update({ role, name: input.name, phone: input.phone || null })
+        .eq('id', userId);
+    }
 
     // 6. Handle academy creation or linking
     let academyId: string | null = null;
@@ -289,14 +300,47 @@ export async function redeemInvite(input: RedeemInviteInput): Promise<RedeemInvi
       });
 
       // For student invites, link to professor if specified in metadata
-      if (
-        invite.type === 'student_invite' &&
-        (invite.metadata as any)?.professor_id
-      ) {
-        await supabase.from('professor_students').insert({
-          professor_id: (invite.metadata as any).professor_id,
-          student_id: userId,
-        });
+      if (invite.type === 'student_invite') {
+        const metadata = invite.metadata as any;
+        
+        if (metadata?.professor_id) {
+          await supabase.from('professor_students').insert({
+            professor_id: metadata.professor_id,
+            student_id: userId,
+          });
+        }
+
+        // Assign plan if specified
+        if (metadata?.plan_id) {
+          // Fetch plan details to calculate end date
+          const { data: plan } = await supabase
+            .from('plans')
+            .select('duration_in_months')
+            .eq('id', metadata.plan_id)
+            .single();
+
+          if (plan) {
+            const startDate = new Date();
+            const endDate = new Date(startDate);
+            
+            if (plan.duration_in_months === -1) {
+              endDate.setDate(startDate.getDate() + 1);
+            } else if (plan.duration_in_months === 0) {
+              endDate.setDate(startDate.getDate() + 7);
+            } else {
+              endDate.setMonth(startDate.getMonth() + plan.duration_in_months);
+            }
+
+            await supabase.from('student_plans').insert({
+              student_id: userId,
+              plan_id: metadata.plan_id,
+              academy_id: academyId,
+              plan_start_date: startDate.toISOString(),
+              plan_end_date: endDate.toISOString(),
+              is_active: true
+            });
+          }
+        }
       }
     }
 

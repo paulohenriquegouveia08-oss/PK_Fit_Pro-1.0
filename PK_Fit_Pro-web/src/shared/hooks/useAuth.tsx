@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User, AuthState } from '../types';
-import { getCurrentUser, logout as authLogout, clearLocalSession } from '../services/auth.service';
+import { getCurrentUser, logout as authLogout, clearLocalSession, validateSessionConsistency } from '../services/auth.service';
 import { supabase } from '../services/supabase';
 
 interface AuthContextType extends AuthState {
@@ -34,6 +34,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     useEffect(() => {
         refreshUser();
 
+        // Validate session to prevent local storage role tampering
+        const verifySession = async () => {
+            const user = getCurrentUser();
+            if (user) {
+                const isValid = await validateSessionConsistency();
+                if (!isValid) {
+                    await authLogout();
+                    setState({
+                        user: null,
+                        isAuthenticated: false,
+                        isLoading: false
+                    });
+                }
+            }
+        };
+        verifySession();
+
         // Listen for Supabase Auth state changes (e.g., token expiration, tab sync)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (event) => {
@@ -47,6 +64,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     });
                 } else if (event === 'SIGNED_IN') {
                     refreshUser();
+                    verifySession();
                 }
             }
         );

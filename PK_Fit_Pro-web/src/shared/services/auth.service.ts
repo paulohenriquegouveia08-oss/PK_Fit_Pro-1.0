@@ -436,3 +436,33 @@ export function isAuthenticated(): boolean {
     return getCurrentUser() !== null;
 }
 
+// Security: Validate if the localStorage session matches the true Supabase DB role
+export async function validateSessionConsistency(): Promise<boolean> {
+    const user = getCurrentUser();
+    if (!user) return false;
+
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return false;
+
+        const { data, error } = await supabase
+            .from('users')
+            .select('role, is_active')
+            .eq('id', session.user.id)
+            .single();
+
+        if (error || !data) return false;
+        
+        if (data.is_active === false) return false;
+
+        // If local storage role was manipulated, return false
+        if (data.role !== user.role) {
+            return false;
+        }
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+

@@ -30,7 +30,11 @@ export async function apiRequest<T>(
       headers['Authorization'] = `Bearer ${session.access_token}`;
     }
 
-    const response = await fetch(`${CORE_API_URL}${path}`, {
+    // Ensure no double slashes in URL (Vercel redirects double slashes which breaks CORS preflight)
+    const baseUrl = CORE_API_URL.replace(/\/+$/, '');
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+    const response = await fetch(`${baseUrl}${cleanPath}`, {
       ...options,
       headers,
     });

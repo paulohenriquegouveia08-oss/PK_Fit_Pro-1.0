@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AlunoLayout } from '../../../shared/components/layout';
-import { getCurrentStudentInfo, getStudentProfessor, getCurrentStudentId } from '../../../shared/services/student.service';
+import { getCurrentStudentInfo, getStudentProfessor } from '../../../shared/services/student.service';
 import { supabase } from '../../../shared/services/supabase';
 import ChangePassword from '../../../shared/components/ChangePassword';
 import { getStudentActivePlan } from '../../../shared/services/plan.service';
@@ -51,7 +51,7 @@ export default function Perfil() {
                     // Get active plan info
                     const planResult = await getStudentActivePlan(studentId);
                     if (planResult.success && planResult.data) {
-                        setActivePlan(planResult.data.plan_name);
+                        setActivePlan(planResult.data.plan_name || null);
                     }
                 }
             }

@@ -262,7 +262,7 @@ export default function Alunos() {
         const planResult = await createStudentPlan(renewStudent.id, renewFormData.plan_id, academyId);
 
         if (planResult.success) {
-            if (renewFormData.payment_method !== 'pagar_depois' && selectedPlanPreview?.price) {
+            if (renewFormData.payment_status === 'pago' && selectedPlanPreview?.price) {
                 const payResult = await markStudentPlanAsPaid(
                     renewStudent.id,
                     renewFormData.plan_id,
@@ -361,7 +361,8 @@ export default function Alunos() {
             phone: student.phone || '',
             professor_id: student.professor_id || '',
             plan_id: '',
-            payment_method: 'pagar_depois',
+            payment_method: 'pix',
+            payment_status: 'pendente',
             photo_url: student.photo_url || ''
         });
         setSelectedPlanPreview(null);
@@ -445,7 +446,8 @@ export default function Alunos() {
             phone: student.phone || '',
             professor_id: student.professor_id || '',
             plan_id: student.plan_id || '',
-            payment_method: 'pagar_depois',
+            payment_method: 'pix',
+            payment_status: 'pendente',
             photo_url: student.photo_url || ''
         });
         setCapturedImage(student.photo_url || null);
@@ -1387,39 +1389,41 @@ export default function Alunos() {
                                             <label className="form-label">Pagamento da Renovação (Opcional)</label>
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 'var(--spacing-2)' }}>
                                                 {[
-                                                    { id: 'pagar_depois', label: 'Pagar Depois', icon: '⏳' },
-                                                    { id: 'pix', label: 'PIX', icon: '📱' },
-                                                    { id: 'credito', label: 'Crédito', icon: '💳' },
-                                                    { id: 'debito', label: 'Débito', icon: '💳' },
-                                                    { id: 'dinheiro', label: 'Dinheiro', icon: '💵' }
-                                                ].map(method => (
+                                                    { status: 'pendente', method: 'pix', label: 'Pagar Depois', icon: '⏳' },
+                                                    { status: 'pago', method: 'pix', label: 'PIX', icon: '📱' },
+                                                    { status: 'pago', method: 'credito', label: 'Crédito', icon: '💳' },
+                                                    { status: 'pago', method: 'debito', label: 'Débito', icon: '💳' },
+                                                    { status: 'pago', method: 'dinheiro', label: 'Dinheiro', icon: '💵' }
+                                                ].map(item => {
+                                                    const isSelected = renewFormData.payment_status === item.status && (item.status === 'pendente' || renewFormData.payment_method === item.method);
+                                                    return (
                                                     <div
-                                                        key={method.id}
-                                                        onClick={() => setRenewFormData(prev => ({ ...prev, payment_method: method.id as any }))}
+                                                        key={item.label}
+                                                        onClick={() => setRenewFormData(prev => ({ ...prev, payment_status: item.status as any, payment_method: item.method as any }))}
                                                         style={{
                                                             padding: 'var(--spacing-2)',
-                                                            border: `1px solid ${renewFormData.payment_method === method.id ? (method.id === 'pagar_depois' ? 'var(--gray-500)' : 'var(--success-500)') : 'var(--border-color)'}`,
+                                                            border: `1px solid ${isSelected ? (item.status === 'pendente' ? 'var(--gray-500)' : 'var(--success-500)') : 'var(--border-color)'}`,
                                                             borderRadius: 'var(--radius-md)',
                                                             cursor: 'pointer',
                                                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--spacing-1)',
-                                                            background: renewFormData.payment_method === method.id
-                                                                ? (method.id === 'pagar_depois' ? 'var(--gray-100)' : 'var(--success-50)')
+                                                            background: isSelected
+                                                                ? (item.status === 'pendente' ? 'var(--gray-100)' : 'var(--success-50)')
                                                                 : 'var(--background-primary)',
                                                             textAlign: 'center'
                                                         }}
                                                     >
-                                                        <span style={{ fontSize: '1.2rem' }}>{method.icon}</span>
+                                                        <span style={{ fontSize: '1.2rem' }}>{item.icon}</span>
                                                         <span style={{
                                                             fontSize: 'var(--font-size-xs)',
-                                                            fontWeight: renewFormData.payment_method === method.id ? 600 : 400,
-                                                            color: renewFormData.payment_method === method.id
-                                                                ? (method.id === 'pagar_depois' ? 'var(--gray-700)' : 'var(--success-700)')
+                                                            fontWeight: isSelected ? 600 : 400,
+                                                            color: isSelected
+                                                                ? (item.status === 'pendente' ? 'var(--gray-700)' : 'var(--success-700)')
                                                                 : 'var(--text-primary)'
                                                         }}>
-                                                            {method.label}
+                                                            {item.label}
                                                         </span>
                                                     </div>
-                                                ))}
+                                                )})}
                                             </div>
                                         </div>
                                     )}

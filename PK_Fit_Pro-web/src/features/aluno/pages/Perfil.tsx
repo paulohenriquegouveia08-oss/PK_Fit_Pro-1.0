@@ -3,6 +3,7 @@ import { AlunoLayout } from '../../../shared/components/layout';
 import { getCurrentStudentInfo, getStudentProfessor, getCurrentStudentId } from '../../../shared/services/student.service';
 import { supabase } from '../../../shared/services/supabase';
 import ChangePassword from '../../../shared/components/ChangePassword';
+import { getStudentActivePlan } from '../../../shared/services/plan.service';
 import type { User } from '../../../shared/types';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../../../features/adminGlobal/styles/academias.css';
@@ -15,6 +16,7 @@ export default function Perfil() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [activePlan, setActivePlan] = useState<string | null>(null);
 
     // Form fields
     const [name, setName] = useState('');
@@ -25,15 +27,31 @@ export default function Perfil() {
             const studentInfo = getCurrentStudentInfo();
             if (studentInfo) {
                 setUser(studentInfo);
-                setName(studentInfo.name || '');
-                setPhone(studentInfo.phone || '');
+                // Fetch fresh user data from DB to get latest phone, created_at, etc
+                const { data: freshUser, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', studentInfo.id)
+                    .single();
+
+                if (!error && freshUser) {
+                    setUser(freshUser as User);
+                    setName(freshUser.name || '');
+                    setPhone(freshUser.phone || '');
+                }
 
                 // Get professor info
-                const studentId = getCurrentStudentId();
+                const studentId = studentInfo.id;
                 if (studentId) {
                     const profResult = await getStudentProfessor(studentId);
                     if (profResult.success && profResult.data) {
                         setProfessor(profResult.data);
+                    }
+                    
+                    // Get active plan info
+                    const planResult = await getStudentActivePlan(studentId);
+                    if (planResult.success && planResult.data) {
+                        setActivePlan(planResult.data.plan_name);
                     }
                 }
             }
@@ -171,6 +189,24 @@ export default function Perfil() {
                                 <div>
                                     <strong>{professor.name}</strong>
                                     <p>{professor.email}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Plan Info */}
+                    {activePlan && (
+                        <div className="professor-info-card" style={{ marginTop: 'var(--spacing-4)' }}>
+                            <h4>Seu Plano</h4>
+                            <div className="professor-details" style={{ alignItems: 'center' }}>
+                                <div className="professor-avatar" style={{ background: 'var(--primary-100)', color: 'var(--primary-600)' }}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <strong>{activePlan}</strong>
+                                    <p style={{ color: 'var(--success-600)', fontSize: 'var(--font-size-xs)', marginTop: '2px' }}>Ativo</p>
                                 </div>
                             </div>
                         </div>

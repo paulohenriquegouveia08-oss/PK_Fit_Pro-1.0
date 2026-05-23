@@ -35,7 +35,8 @@ interface FormData {
     phone?: string;
     professor_id: string;
     plan_id: string;
-    payment_method?: 'dinheiro' | 'pix' | 'credito' | 'debito' | 'pagar_depois';
+    payment_method: 'dinheiro' | 'pix' | 'credito' | 'debito';
+    payment_status: 'pago' | 'pendente';
     photo_url?: string;
 }
 
@@ -45,7 +46,8 @@ const initialFormData: FormData = {
     phone: '',
     professor_id: '',
     plan_id: '',
-    payment_method: 'pagar_depois',
+    payment_method: 'pix',
+    payment_status: 'pendente',
 };
 
 // Student with plan info
@@ -214,6 +216,8 @@ export default function Alunos() {
                     student_name: formData.name,
                     professor_id: formData.professor_id || undefined,
                     plan_id: formData.plan_id,
+                    payment_method: formData.payment_method,
+                    payment_status: formData.payment_status,
                     photo_url: photoUrlToSave || undefined
                 },
                 academy_id: academyId
@@ -754,6 +758,16 @@ export default function Alunos() {
                                             src={aluno.photo_url} 
                                             alt={aluno.name} 
                                             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = 'none';
+                                                const parent = e.currentTarget.parentElement;
+                                                if (parent) {
+                                                    parent.innerText = getInitials(aluno.name);
+                                                    parent.style.display = 'flex';
+                                                    parent.style.alignItems = 'center';
+                                                    parent.style.justifyContent = 'center';
+                                                }
+                                            }}
                                         />
                                     ) : (
                                         getInitials(aluno.name)
@@ -1047,6 +1061,38 @@ export default function Alunos() {
                                                     </option>
                                                 ))}
                                             </select>
+                                        </div>
+
+                                        {/* Payment Info */}
+                                        <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-2)' }}>
+                                            <div>
+                                                <label className="form-label">Status do Pagamento</label>
+                                                <select
+                                                    name="payment_status"
+                                                    className="form-input"
+                                                    value={formData.payment_status}
+                                                    onChange={handleInputChange}
+                                                >
+                                                    <option value="pendente">Pendente</option>
+                                                    <option value="pago">Pago Agora</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="form-label">Forma de Pagamento</label>
+                                                <select
+                                                    name="payment_method"
+                                                    className="form-input"
+                                                    value={formData.payment_method}
+                                                    onChange={handleInputChange}
+                                                    disabled={formData.payment_status === 'pendente'}
+                                                    style={{ opacity: formData.payment_status === 'pendente' ? 0.5 : 1 }}
+                                                >
+                                                    <option value="pix">PIX</option>
+                                                    <option value="dinheiro">Dinheiro</option>
+                                                    <option value="credito">Cartão de Crédito</option>
+                                                    <option value="debito">Cartão de Débito</option>
+                                                </select>
+                                            </div>
                                         </div>
 
                                         {/* Plan Preview */}

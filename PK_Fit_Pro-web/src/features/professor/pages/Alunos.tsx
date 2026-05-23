@@ -151,15 +151,28 @@ export default function Alunos() {
                                             <path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z" />
                                         </svg>
                                     </button>
-                                    <a
-                                        href={`/professor/criar-treino?studentId=${aluno.id}`}
-                                        className="action-btn"
-                                        title="Editar Treino"
-                                    >
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-                                        </svg>
-                                    </a>
+                                    {aluno.payment_status === 'pago' ? (
+                                        <a
+                                            href={`/professor/criar-treino?studentId=${aluno.id}`}
+                                            className="action-btn"
+                                            title="Editar Treino"
+                                        >
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                                            </svg>
+                                        </a>
+                                    ) : (
+                                        <button
+                                            className="action-btn"
+                                            title="Treino bloqueado (Pagamento pendente)"
+                                            disabled
+                                            style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                                        >
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                                            </svg>
+                                        </button>
+                                    )}
                                     <button
                                         className="action-btn"
                                         title="Ver Informações"
@@ -208,6 +221,12 @@ export default function Alunos() {
                                     <span>{selectedStudent.phone || 'Não informado'}</span>
                                 </div>
                                 <div className="info-row">
+                                    <strong>Status de Pagamento:</strong>
+                                    <span className={`status-badge ${selectedStudent.payment_status === 'pago' ? 'active' : 'inactive'}`}>
+                                        {selectedStudent.payment_status === 'pago' ? 'Pago' : 'Pendente'}
+                                    </span>
+                                </div>
+                                <div className="info-row">
                                     <strong>Status:</strong>
                                     <span className={`status-badge ${selectedStudent.is_active ? 'active' : 'inactive'}`}>
                                         {selectedStudent.is_active ? 'Ativo' : 'Inativo'}
@@ -227,7 +246,11 @@ export default function Alunos() {
                         </div>
                         <div className="modal-footer">
                             <button className="btn-cancel" onClick={() => setShowInfoModal(false)}>Fechar</button>
-                            <a href="/professor/criar-treino" className="btn-add">Criar Treino</a>
+                            {selectedStudent.payment_status === 'pago' ? (
+                                <a href={`/professor/criar-treino?studentId=${selectedStudent.id}`} className="btn-add">Criar Treino</a>
+                            ) : (
+                                <button className="btn-add" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }} title="Treino bloqueado (Pagamento pendente)">Criar Treino</button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -325,9 +348,15 @@ export default function Alunos() {
                         </div>
                         <div className="modal-footer">
                             <button className="btn-cancel" onClick={closeWorkoutModal}>Fechar</button>
-                            <a href="/professor/criar-treino" className="btn-add">
-                                {studentWorkout ? 'Editar Treino' : 'Criar Treino'}
-                            </a>
+                            {selectedStudent.payment_status === 'pago' ? (
+                                <a href={`/professor/criar-treino?studentId=${selectedStudent.id}`} className="btn-add">
+                                    {studentWorkout ? 'Editar Treino' : 'Criar Treino'}
+                                </a>
+                            ) : (
+                                <button className="btn-add" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }} title="Treino bloqueado (Pagamento pendente)">
+                                    {studentWorkout ? 'Editar Treino' : 'Criar Treino'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

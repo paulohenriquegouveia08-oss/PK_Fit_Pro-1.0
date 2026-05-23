@@ -312,10 +312,10 @@ export async function redeemInvite(input: RedeemInviteInput): Promise<RedeemInvi
 
         // Assign plan if specified
         if (metadata?.plan_id) {
-          // Fetch plan details to calculate end date
+          // Fetch plan details to calculate end date and price
           const { data: plan } = await supabase
             .from('plans')
-            .select('duration_in_months')
+            .select('duration_in_months, price')
             .eq('id', metadata.plan_id)
             .single();
 
@@ -339,6 +339,20 @@ export async function redeemInvite(input: RedeemInviteInput): Promise<RedeemInvi
               plan_end_date: endDate.toISOString(),
               is_active: true
             });
+            
+            // Register initial payment
+            if (metadata.payment_status && metadata.payment_method) {
+               await supabase.from('payments').insert({
+                 academy_id: academyId,
+                 student_id: userId,
+                 plan_id: metadata.plan_id,
+                 amount: plan.price || 0,
+                 status: metadata.payment_status,
+                 payment_method: metadata.payment_method,
+                 payment_date: startDate.toISOString().split('T')[0],
+                 description: 'Mensalidade inicial (Matrícula)'
+               });
+            }
           }
         }
       }

@@ -9,6 +9,7 @@ export interface AcademyMember extends User {
     professor_name?: string;
     professor_id?: string;
     student_count?: number;
+    payment_status?: string;
 }
 
 export interface CreateMemberData {
@@ -88,6 +89,28 @@ export async function getAcademyMembers(
                         ? (relation.users[0] as { name: string } | undefined)?.name
                         : (relation?.users as { name: string } | undefined)?.name
                 });
+            }
+
+            // Get payment status for students
+            const { data: payments } = await supabase
+                .from('payments')
+                .select('student_id, status')
+                .in('student_id', userIds)
+                .order('payment_date', { ascending: false });
+
+            const paymentMap = new Map<string, string>();
+            if (payments) {
+                for (const p of payments) {
+                    if (p.student_id && !paymentMap.has(p.student_id)) {
+                        paymentMap.set(p.student_id, p.status);
+                    }
+                }
+            }
+
+            // Apply payment status
+            for (let i = 0; i < membersWithDetails.length; i++) {
+                const member = membersWithDetails[i];
+                member.payment_status = paymentMap.get(member.id) || 'pendente';
             }
         }
 

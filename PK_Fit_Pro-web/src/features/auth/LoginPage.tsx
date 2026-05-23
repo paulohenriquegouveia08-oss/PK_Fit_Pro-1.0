@@ -181,8 +181,8 @@ export default function LoginPage() {
                 setIsLoading(false);
             }
         }
-        
         // Fallback: If login fails or credentials are not present, redirect to login with email step
+        sessionStorage.removeItem('welcome_name');
         setError('O cadastro foi concluído, mas houve um erro ao logar automaticamente. Por favor, faça login com seu email e senha recém-criados.');
         setStep('email');
     };

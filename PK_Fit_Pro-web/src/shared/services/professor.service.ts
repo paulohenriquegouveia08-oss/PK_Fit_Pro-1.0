@@ -6,6 +6,7 @@ export interface ProfessorStudent extends User {
     has_workout: boolean;
     last_workout_date?: string;
     is_self_created?: boolean;
+    payment_status?: string;
 }
 
 // Get current professor's user ID from persistent storage
@@ -64,12 +65,29 @@ export async function getProfessorStudents(professorId: string): Promise<ApiResp
             }
         }
 
-        // Combine student data with workout status
+        // Get payment status for students
+        const { data: payments } = await supabase
+            .from('payments')
+            .select('student_id, status')
+            .in('student_id', studentIds)
+            .order('payment_date', { ascending: false });
+
+        const paymentMap = new Map<string, string>();
+        if (payments) {
+            for (const p of payments) {
+                if (p.student_id && !paymentMap.has(p.student_id)) {
+                    paymentMap.set(p.student_id, p.status);
+                }
+            }
+        }
+
+        // Combine student data with workout status and payment status
         const studentsWithWorkout: ProfessorStudent[] = (students || []).map(student => ({
             ...student,
             has_workout: workoutMap.get(student.id)?.has_workout || false,
             last_workout_date: workoutMap.get(student.id)?.created_at,
-            is_self_created: workoutMap.get(student.id)?.is_self_created || false
+            is_self_created: workoutMap.get(student.id)?.is_self_created || false,
+            payment_status: paymentMap.get(student.id) || 'pendente'
         }));
 
         return {

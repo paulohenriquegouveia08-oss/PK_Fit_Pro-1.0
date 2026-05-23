@@ -422,6 +422,7 @@ export function clearLocalSession(): void {
         clearUserData(user.id);
     }
     removeStorageItem(STORAGE_KEYS.USER_SESSION);
+    sessionStorage.removeItem('welcome_name');
 }
 
 // Logout - clear session and all user data including workout cache

@@ -108,7 +108,7 @@ export default function MeuTreino() {
                         </div>
                     )}
                     <div className="page-header">
-                        <h2>Minha Ficha de Treino</h2>
+                        <h2>Minha Ficha de Treino --</h2>
                     </div>
                     <div className="workout-card">
                         <div className="empty-state" style={{ padding: 'var(--spacing-8)' }}>

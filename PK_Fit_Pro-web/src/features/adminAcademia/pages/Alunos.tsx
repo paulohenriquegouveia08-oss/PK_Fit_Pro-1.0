@@ -255,6 +255,7 @@ export default function Alunos() {
                 setMessage({ type: 'success', text: 'Convite gerado com sucesso!' });
                 setFormData(initialFormData);
                 setSelectedPlanPreview(null);
+                loadData();
             } else {
                 setMessage({ type: 'error', text: result.error || 'Erro ao gerar convite' });
             }

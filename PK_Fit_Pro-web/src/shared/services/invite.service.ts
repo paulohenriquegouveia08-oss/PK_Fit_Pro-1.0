@@ -32,7 +32,7 @@ export async function createInvite(payload: { type: string; max_uses?: number; a
 }
 
 export async function getAcademyInvites(academyId: string): Promise<ApiResponse<any[]>> {
-    return apiRequest<any[]>(`/api/v1/invites?academy_id=${academyId}&type=student_invite&active=true&limit=1000`, {
+    return apiRequest<any[]>(`/api/v1/invites?academy_id=${academyId}&type=student_invite&active=true&limit=100`, {
         method: 'GET'
     });
 }

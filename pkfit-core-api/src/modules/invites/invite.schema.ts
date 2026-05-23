@@ -17,7 +17,13 @@ export const createInviteSchema = z.object({
       student_limit: z.number().int().positive().optional(),
       professor_id: z.string().uuid().optional(),
       notes: z.string().max(500).optional(),
+      student_name: z.string().optional(),
+      plan_id: z.string().optional(),
+      payment_method: z.string().optional(),
+      payment_status: z.string().optional(),
+      photo_url: z.string().optional(),
     })
+    .passthrough()
     .optional()
     .default({}),
   max_uses: z.number().int().min(1).max(100).default(1),

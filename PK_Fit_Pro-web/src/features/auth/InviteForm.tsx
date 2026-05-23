@@ -90,7 +90,6 @@ export default function InviteForm({ inviteCode, inviteData, onSuccess, onBack }
 
     const isAcademy = inviteData.type === 'academy_invite';
     const isTeacher = inviteData.type === 'teacher_invite';
-    const isStudent = inviteData.type === 'student_invite';
 
     return (
         <form className="login-form" onSubmit={handleSubmit}>

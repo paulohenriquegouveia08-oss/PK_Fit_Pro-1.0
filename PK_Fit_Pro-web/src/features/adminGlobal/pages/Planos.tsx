@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { getGlobalPlans, createGlobalPlan, updateGlobalPlan, deleteGlobalPlan, type GlobalPlan } from '../../../shared/services/globalPlan.service';
-import './admin-global.css';
+import '../styles/academias.css';
 
 export default function Planos() {
     const [plans, setPlans] = useState<GlobalPlan[]>([]);

@@ -20,11 +20,30 @@ export async function linkStudentToProfessor(studentId: string, professorId: str
 }
 
 export async function removeUserFully(userId: string) {
-  // We use Supabase Admin SDK to delete the auth.users record.
-  // Because of ON DELETE CASCADE, this should cascade to public.users,
-  // academy_users, professor_students, etc.
-  const { error } = await supabase().auth.admin.deleteUser(userId);
-  if (error) throw new Error(`Erro ao deletar conta de autenticação: ${error.message}`);
+  const adminClient = supabase();
+  
+  // Manual cascade cleanup to prevent 'Database error deleting user' due to missing foreign key constraints
+  try {
+    // 1. Unlink from invite_codes (used_by)
+    await adminClient.from('invite_codes').update({ used_by: null }).eq('used_by', userId);
+    
+    // 2. Delete relations in public tables
+    await adminClient.from('professor_students').delete().eq('student_id', userId);
+    await adminClient.from('professor_students').delete().eq('professor_id', userId);
+    await adminClient.from('student_plans').delete().eq('student_id', userId);
+    await adminClient.from('academy_users').delete().eq('user_id', userId);
+    await adminClient.from('workouts').delete().eq('student_id', userId);
+    
+    // 3. Delete from public.users
+    await adminClient.from('users').delete().eq('id', userId);
+  } catch (cleanupError) {
+    console.warn('[DELETE_USER] Error during manual cleanup:', cleanupError);
+    // Continue anyway to try and delete the auth user
+  }
+
+  // 4. Delete the auth.users record.
+  const { error } = await adminClient.auth.admin.deleteUser(userId);
+  if (error) throw new Error(`Database error deleting user: ${error.message}`);
 }
 
 export async function findUserAcademy(userId: string): Promise<string | null> {

@@ -23,3 +23,10 @@ export async function redeemInviteCode(payload: any): Promise<ApiResponse<{ user
         body: JSON.stringify(payload)
     });
 }
+
+export async function createInvite(payload: { type: string; max_uses: number; metadata: any }): Promise<ApiResponse<{ id: string; code: string; expires_at: string }>> {
+    return apiRequest<{ id: string; code: string; expires_at: string }>('/api/v1/invites', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+    });
+}

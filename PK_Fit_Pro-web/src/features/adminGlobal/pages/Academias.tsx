@@ -2,11 +2,11 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { DashboardLayout } from '../../../shared/components/layout';
 import {
     getAcademies,
-    createAcademy,
     updateAcademyStatus,
     deleteAcademy,
     type Academy
 } from '../../../shared/services/academy.service';
+import { createInvite } from '../../../shared/services/invite.service';
 import { getGlobalPlans, type GlobalPlan } from '../../../shared/services/globalPlan.service';
 import '../styles/dashboard.css';
 import '../styles/academias.css';
@@ -14,17 +14,11 @@ import { adminGlobalMenuItems as menuItems } from '../../../shared/config/adminG
 
 interface FormData {
     name: string;
-    email: string;
-    phone: string;
-    responsible_name: string;
     plan: string;
 }
 
 const initialFormData: FormData = {
     name: '',
-    email: '',
-    phone: '',
-    responsible_name: '',
     plan: ''
 };
 
@@ -41,6 +35,7 @@ export default function Academias() {
     const [formData, setFormData] = useState<FormData>(initialFormData);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [generatedCode, setGeneratedCode] = useState<string | null>(null);
 
     // Load data
     const loadData = async () => {
@@ -85,31 +80,39 @@ export default function Academias() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // Handle create academy
+    // Handle create invite
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
         setMessage(null);
+        setGeneratedCode(null);
 
         const planData = globalPlans.find(p => p.id === formData.plan);
 
-        const result = await createAcademy({
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone || undefined,
-            responsible_name: formData.responsible_name,
+        if (!planData) {
+            setMessage({ type: 'error', text: 'Selecione um plano' });
+            setIsSubmitting(false);
+            return;
+        }
 
-            plan_name: planData?.name,
-            plan_value: planData?.price
+        const result = await createInvite({
+            type: 'academy_invite',
+            max_uses: 1,
+            metadata: {
+                academy_name: formData.name,
+                plan_id: planData.id,
+                plan_name: planData.name,
+                plan_value: planData.price,
+                student_limit: planData.student_limit
+            }
         });
 
-        if (result.success) {
-            setMessage({ type: 'success', text: 'Academia criada com sucesso!' });
+        if (result.success && result.data) {
+            setMessage({ type: 'success', text: 'Convite gerado com sucesso! Envie este código para a academia.' });
+            setGeneratedCode(result.data.code);
             setFormData(initialFormData);
-            setShowModal(false);
-            loadAcademies();
         } else {
-            setMessage({ type: 'error', text: result.error || 'Erro ao criar academia' });
+            setMessage({ type: 'error', text: result.error || 'Erro ao gerar convite' });
         }
 
         setIsSubmitting(false);
@@ -198,11 +201,11 @@ export default function Academias() {
 
                 <div className="page-header">
                     <h2>Gerenciar Academias</h2>
-                    <button className="btn-add" onClick={() => setShowModal(true)}>
+                    <button className="btn-add" onClick={() => { setShowModal(true); setGeneratedCode(null); setMessage(null); }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                         </svg>
-                        Nova Academia
+                        Gerar Convite
                     </button>
                 </div>
 
@@ -329,111 +332,92 @@ export default function Academias() {
                         ))}
                     </div>
                 )}
-
-                {/* Modal Nova Academia */}
+                {/* Modal Novo Convite */}
                 {showModal && (
                     <div className="modal-overlay" onClick={() => setShowModal(false)}>
                         <div className="modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title">Nova Academia</h3>
-                                <button className="modal-close" onClick={() => setShowModal(false)}>
+                                <h3 className="modal-title">Gerar Convite de Academia</h3>
+                                <button className="modal-close" onClick={() => { setShowModal(false); setGeneratedCode(null); setMessage(null); }}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                                     </svg>
                                 </button>
                             </div>
-                            <form onSubmit={handleSubmit}>
-                                <div className="modal-body">
-                                    <div className="form-group">
-                                        <label className="form-label">Nome da Academia *</label>
-                                        <input
-                                            type="text"
-                                            name="name"
-                                            className="form-input"
-                                            placeholder="Ex: Academia Força Total"
-                                            value={formData.name}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
+                            
+                            {generatedCode ? (
+                                <div className="modal-body" style={{ textAlign: 'center', padding: '2rem' }}>
+                                    <h4 style={{ color: 'var(--success-color)', marginBottom: '1rem' }}>Convite Gerado!</h4>
+                                    <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+                                        Copie o código abaixo e envie para o dono da academia.
+                                    </p>
+                                    <div style={{ background: 'var(--bg-secondary)', padding: '1rem', borderRadius: '8px', fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '1.5rem' }}>
+                                        {generatedCode}
                                     </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Email da Academia</label>
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            className="form-input"
-                                            placeholder="email@academia.com"
-                                            value={formData.email}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                        <small style={{ color: '#666', fontSize: '0.85em', marginTop: '4px', display: 'block' }}>
-                                            Este email será usado para o login da academia.
-                                        </small>
+                                    <button type="button" className="btn-primary" onClick={() => { navigator.clipboard.writeText(generatedCode); alert('Copiado!'); }}>
+                                        Copiar Código
+                                    </button>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleSubmit}>
+                                    <div className="modal-body">
+                                        {message && (
+                                            <div className={`alert ${message.type === 'error' ? 'error' : 'success'}`}>
+                                                {message.text}
+                                            </div>
+                                        )}
+                                        <div className="form-group">
+                                            <label className="form-label">Nome da Academia (Para Identificação) *</label>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                className="form-input"
+                                                placeholder="Ex: Academia Força Total"
+                                                value={formData.name}
+                                                onChange={handleInputChange}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Plano *</label>
+                                            <select
+                                                name="plan"
+                                                className="form-input"
+                                                value={formData.plan}
+                                                onChange={handleInputChange}
+                                                required
+                                            >
+                                                <option value="">Selecione um plano</option>
+                                                {globalPlans.map(p => (
+                                                    <option key={p.id} value={p.id}>
+                                                        {p.name} - R$ {p.price.toFixed(2)}/mês (Até {p.student_limit === 999999 ? 'Ilimitado' : p.student_limit} alunos)
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Telefone</label>
-                                        <input
-                                            type="tel"
-                                            name="phone"
-                                            className="form-input"
-                                            placeholder="(00) 00000-0000"
-                                            value={formData.phone}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Nome do Responsável *</label>
-                                        <input
-                                            type="text"
-                                            name="responsible_name"
-                                            className="form-input"
-                                            placeholder="Nome completo"
-                                            value={formData.responsible_name}
-                                            onChange={handleInputChange}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label className="form-label">Plano</label>
-                                        <select
-                                            name="plan"
-                                            className="form-input"
-                                            value={formData.plan}
-                                            onChange={handleInputChange}
+                                    <div className="modal-footer">
+                                        <button
+                                            type="button"
+                                            className="btn-cancel"
+                                            onClick={() => { setShowModal(false); setGeneratedCode(null); setMessage(null); }}
+                                            disabled={isSubmitting}
                                         >
-                                            <option value="">Selecione um plano</option>
-                                            {globalPlans.map(p => (
-                                                <option key={p.id} value={p.id}>
-                                                    {p.name} - R$ {p.price.toFixed(2)}/mês (Até {p.student_limit === 999999 ? 'Ilimitado' : p.student_limit} alunos)
-                                                </option>
-                                            ))}
-                                        </select>
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="btn-submit"
+                                            disabled={isSubmitting}
+                                        >
+                                            {isSubmitting ? 'Gerando...' : 'Gerar Convite'}
+                                        </button>
                                     </div>
-                                </div>
-                                <div className="modal-footer">
-                                    <button
-                                        type="button"
-                                        className="btn-cancel"
-                                        onClick={() => setShowModal(false)}
-                                        disabled={isSubmitting}
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="btn-submit"
-                                        disabled={isSubmitting}
-                                    >
-                                        {isSubmitting ? 'Criando...' : 'Criar Academia'}
-                                    </button>
-                                </div>
-                            </form>
+                                </form>
+                            )}
                         </div>
                     </div>
-                )
-                }
+                )}
 
                 {/* Modal Confirmar Exclusão */}
                 {

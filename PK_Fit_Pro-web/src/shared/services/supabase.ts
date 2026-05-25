@@ -4,7 +4,7 @@ let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (import.meta.env.PROD) {
-    supabaseUrl = '/proxy/supabase';
+    supabaseUrl = window.location.origin + '/proxy/supabase';
 }
 
 if (!supabaseUrl || !supabaseAnonKey) {

@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 let CORE_API_URL = import.meta.env.VITE_CORE_API_URL || 'http://localhost:3001';
 
 if (import.meta.env.PROD) {
-    CORE_API_URL = '/proxy/core';
+    CORE_API_URL = window.location.origin + '/proxy/core';
 }
 
 export interface ApiResponse<T = unknown> {

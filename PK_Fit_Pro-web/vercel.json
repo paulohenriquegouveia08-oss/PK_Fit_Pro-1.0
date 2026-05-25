@@ -16,6 +16,14 @@
   ],
   "rewrites": [
     {
+      "source": "/proxy/supabase/:path*",
+      "destination": "http://137.131.233.254:8002/:path*"
+    },
+    {
+      "source": "/proxy/core/:path*",
+      "destination": "http://137.131.233.254:3001/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -1,6 +1,10 @@
 import { supabase } from './supabase';
 
-const CORE_API_URL = import.meta.env.VITE_CORE_API_URL || 'http://localhost:3001';
+let CORE_API_URL = import.meta.env.VITE_CORE_API_URL || 'http://localhost:3001';
+
+if (import.meta.env.PROD) {
+    CORE_API_URL = '/proxy/core';
+}
 
 export interface ApiResponse<T = unknown> {
   success: boolean;

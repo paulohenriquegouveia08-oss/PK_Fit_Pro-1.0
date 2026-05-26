@@ -442,8 +442,13 @@ export async function validateSessionConsistency(): Promise<boolean> {
     if (!user) return false;
 
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return false;
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        // Se não conseguiu obter a sessão do Supabase (offline, recarregando no mobile, etc),
+        // confiamos na sessão local. O backend/RLS protegerá os dados caso o token esteja inválido.
+        if (sessionError || !session) {
+            return true;
+        }
 
         const { data, error } = await supabase
             .from('users')
@@ -451,11 +456,20 @@ export async function validateSessionConsistency(): Promise<boolean> {
             .eq('id', session.user.id)
             .single();
 
-        if (error || !data) return false;
+        if (error) {
+            // Se for erro de rede/conexão, não desloga o usuário
+            if (error.message && (error.message.includes('fetch') || error.message.includes('network'))) {
+                return true; 
+            }
+            // Se for outro erro, assume que o usuário não existe mais
+            return false;
+        }
+        
+        if (!data) return false;
         
         if (data.is_active === false) return false;
 
-        // If local storage role was manipulated, return false
+        // Se o cargo manipulado no localStorage for diferente do DB real
         if (data.role !== user.role) {
             return false;
         }

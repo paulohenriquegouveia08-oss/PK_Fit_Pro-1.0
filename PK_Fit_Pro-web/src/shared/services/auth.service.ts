@@ -444,10 +444,14 @@ export async function validateSessionConsistency(): Promise<boolean> {
     try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        // Se não conseguiu obter a sessão do Supabase (offline, recarregando no mobile, etc),
-        // confiamos na sessão local. O backend/RLS protegerá os dados caso o token esteja inválido.
-        if (sessionError || !session) {
+        // Se houve erro de rede ao tentar pegar a sessão, mantemos logado temporariamente
+        if (sessionError && (sessionError.message.includes('fetch') || sessionError.message.includes('network'))) {
             return true;
+        }
+
+        // Se realmente não há sessão no Supabase (token expirou ou foi invalidado), DEVE deslogar
+        if (!session) {
+            return false;
         }
 
         const { data, error } = await supabase

@@ -208,11 +208,11 @@ export default function Dashboard() {
                             <p>Baixe o agente local para sincronizar as catracas e biometrias da sua academia.</p>
                         </div>
                     </div>
-                    <a href="/downloads/PKFitAgent-Setup.exe" download className="download-button-link">
+                    <a href="/downloads/PKFitAgent-v2-Setup.exe" download className="download-button-link">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5z" />
                         </svg>
-                        Baixar Instalador (.exe)
+                        Baixar Instalador v2.0.0 (.exe)
                     </a>
                 </div>
 

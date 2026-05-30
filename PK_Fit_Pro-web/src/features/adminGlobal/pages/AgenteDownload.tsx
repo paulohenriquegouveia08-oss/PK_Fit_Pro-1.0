@@ -13,8 +13,8 @@ interface AcademyTurnstileStatus {
     last_heartbeat: string | null;
 }
 
-const AGENT_VERSION = '1.0.0';
-const AGENT_DOWNLOAD_URL = '/downloads/PKFitAgent-Setup.exe';
+const AGENT_VERSION = '2.0.0';
+const AGENT_DOWNLOAD_URL = '/downloads/PKFitAgent-v2-Setup.exe';
 
 export default function AgenteDownload() {
     const [statuses, setStatuses] = useState<AcademyTurnstileStatus[]>([]);
@@ -143,7 +143,7 @@ export default function AgenteDownload() {
                             <a
                                 href={AGENT_DOWNLOAD_URL}
                                 className="agent-download-btn"
-                                download="PKFitAgent-Setup.exe"
+                                download="PKFitAgent-v2-Setup.exe"
                             >
                                 <svg viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />

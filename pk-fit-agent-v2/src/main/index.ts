@@ -65,6 +65,10 @@ app.whenReady().then(() => {
     return hasLocalConfig()
   })
 
+  ipcMain.handle('get-version', () => {
+    return app.getVersion()
+  })
+
   ipcMain.handle('get-config', () => {
     return loadLocalConfig()
   })

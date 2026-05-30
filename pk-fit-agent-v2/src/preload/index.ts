@@ -5,6 +5,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 const api = {
   hasConfig: () => ipcRenderer.invoke('has-config'),
   getConfig: () => ipcRenderer.invoke('get-config'),
+  getVersion: () => ipcRenderer.invoke('get-version'),
   pair: (code: string) => ipcRenderer.invoke('pair', code),
   connect: () => ipcRenderer.invoke('connect'),
   disconnect: () => ipcRenderer.invoke('disconnect'),

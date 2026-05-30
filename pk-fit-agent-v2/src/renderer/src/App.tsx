@@ -7,6 +7,7 @@ function App(): React.ReactNode {
   const [config, setConfig] = useState<any>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [logs, setLogs] = useState<LogEntry[]>([])
+  const [appVersion, setAppVersion] = useState('...')
 
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,6 +24,9 @@ function App(): React.ReactNode {
         setConfig(cfg);
       }
     });
+
+    // Fetch app version
+    window.api.getVersion().then((v) => setAppVersion(v));
 
     // Listen for agent logs
     window.api.onAgentLog((log) => {
@@ -187,6 +191,12 @@ function App(): React.ReactNode {
           </div>
         </div>
       )}
+
+      <footer className="app-footer">
+        <span>PK Fit Agent v{appVersion}</span>
+        <span className="footer-separator">•</span>
+        <span>© {new Date().getFullYear()} PK Digital</span>
+      </footer>
     </div>
   )
 }

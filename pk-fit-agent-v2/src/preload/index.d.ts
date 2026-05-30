@@ -6,6 +6,7 @@ declare global {
     api: {
       hasConfig: () => Promise<boolean>
       getConfig: () => Promise<any>
+      getVersion: () => Promise<string>
       pair: (code: string) => Promise<{ success: boolean; config?: any; error?: string }>
       connect: () => Promise<{ success: boolean; error?: string }>
       disconnect: () => Promise<{ success: boolean; error?: string }>

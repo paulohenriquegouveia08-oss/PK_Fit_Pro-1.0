@@ -185,3 +185,28 @@ button {
   height: 100vh;
   color: var(--text-muted);
 }
+
+/* ============ Footer Versão ============ */
+.app-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.8));
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  z-index: 100;
+  user-select: none;
+}
+
+.footer-separator {
+  opacity: 0.4;
+}
+

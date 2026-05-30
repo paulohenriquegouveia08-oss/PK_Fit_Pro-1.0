@@ -14,7 +14,7 @@ interface AcademyTurnstileStatus {
 }
 
 const AGENT_VERSION = '2.0.0';
-const AGENT_DOWNLOAD_URL = '/downloads/PKFitAgent-v2-Setup.exe';
+const AGENT_DOWNLOAD_URL = 'https://github.com/paulohenriquegouveia08-oss/PK_Fit_Pro-1.0/raw/main/PK_Fit_Pro-web/public/downloads/PKFitAgent-v2-Setup.exe';
 
 export default function AgenteDownload() {
     const [statuses, setStatuses] = useState<AcademyTurnstileStatus[]>([]);

@@ -20,72 +20,74 @@ import {
     getTrainingFrequency,
     getStudentExercises,
     generateInsights,
-    getStreaks,
     getPerformanceComparison,
+    calculateMonthlyStats,
+    classifyFrequency,
     PERIOD_OPTIONS,
     type LoadEvolutionPoint,
     type RepsEvolutionPoint,
     type FrequencyDay,
     type AnalysisInsight,
-    type StreakInfo,
     type PerformanceComparison
 } from '../../../shared/services/evolution.service';
 import { alunoMenuItems as menuItems } from '../../../shared/config/alunoMenu';
 import '../../../features/adminGlobal/styles/dashboard.css';
 import '../styles/aluno.css';
 
-// Chart.js removed in favor of Recharts
-
-// ─── Chart Colors ───
 const COLORS = {
-    primary: 'rgb(99, 102, 241)',
-    primaryAlpha: 'rgba(99, 102, 241, 0.2)',
+    primary: 'var(--primary-500)',
+    primaryRgb: '59, 130, 246',
+    primaryAlpha: 'rgba(59, 130, 246, 0.15)',
     success: 'rgb(34, 197, 94)',
     successAlpha: 'rgba(34, 197, 94, 0.2)',
     danger: 'rgb(239, 68, 68)',
     dangerAlpha: 'rgba(239, 68, 68, 0.2)',
     neutral: '#94a3b8',
-    bgSecondary: 'var(--background-secondary)',
+    bgSecondary: 'var(--bg-tertiary)',
     border: 'var(--border-color)',
 };
 
-// ─── Helpers ───
+const MONTHS = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
 const fmtDate = (d: string) => {
     const [, m, day] = d.split('-');
     return `${day}/${m}`;
 };
 
+function formatDateStr(year: number, month: number, day: number): string {
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 export default function Evolucao() {
     const [studentId, setStudentId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Global filters
+    const today = useMemo(() => new Date(), []);
+    const [currentYear, setCurrentYear] = useState(today.getFullYear());
+    const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+    const [calendarKey, setCalendarKey] = useState(`${today.getFullYear()}-${today.getMonth()}`);
+
     const [globalPeriod, setGlobalPeriod] = useState(30);
 
-    // --- State Data ---
     const [loadData, setLoadData] = useState<LoadEvolutionPoint[]>([]);
     const [freqData, setFreqData] = useState<FrequencyDay[]>([]);
     const [exercises, setExercises] = useState<string[]>([]);
 
-    // Exercise specific evolution
     const [repsDataMap, setRepsDataMap] = useState<Record<string, RepsEvolutionPoint[]>>({});
     const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
     const [selectedChartExercise, setSelectedChartExercise] = useState<string | null>(null);
     const [chartTab, setChartTab] = useState<'volume' | 'carga' | 'reps'>('volume');
 
-    // Set first exercise as default when exercises load
-    useEffect(() => {
-        if (exercises.length > 0 && !selectedChartExercise) {
-            setSelectedChartExercise(exercises[0]);
-        }
-    }, [exercises, selectedChartExercise]);
-
-    // Derived stats
     const [insights, setInsights] = useState<AnalysisInsight[]>([]);
-    const [streak, setStreak] = useState<StreakInfo>({ currentStreak: 0, bestStreak: 0 });
-    const [performance, setPerformance] = useState<PerformanceComparison>({ volumeEvolution: 0, loadEvolution: 0, freqEvolution: 0 });
+    const [performance, setPerformance] = useState<PerformanceComparison>({
+        volumeEvolution: 0, loadEvolution: 0, freqEvolution: 0
+    });
 
-    // Init
     useEffect(() => {
         const sId = getCurrentStudentId();
         if (!sId) { setIsLoading(false); return; }
@@ -94,28 +96,24 @@ export default function Evolucao() {
         setIsLoading(false);
     }, []);
 
-    // Fetch Global Data
     useEffect(() => {
         if (!studentId) return;
 
         Promise.all([
             getLoadEvolution(studentId, globalPeriod),
-            getTrainingFrequency(studentId, globalPeriod)
+            getTrainingFrequency(studentId, 365)
         ]).then(([lData, fData]) => {
             setLoadData(lData);
             setFreqData(fData);
-
             setInsights(generateInsights(lData, fData, globalPeriod));
-            setStreak(getStreaks(fData));
             setPerformance(getPerformanceComparison(lData, fData));
         });
     }, [studentId, globalPeriod]);
 
-    // Fetch exercise data (for both chart and expanded bottom list)
     useEffect(() => {
         if (!studentId) return;
         const exercisesToFetch = [expandedExercise, selectedChartExercise].filter(Boolean) as string[];
-        
+
         exercisesToFetch.forEach(ex => {
             if (!repsDataMap[ex]) {
                 getRepsEvolution(studentId, ex, globalPeriod).then(data => {
@@ -125,19 +123,165 @@ export default function Evolucao() {
         });
     }, [studentId, expandedExercise, selectedChartExercise, globalPeriod, repsDataMap]);
 
-    // ────── CHART DATA ──────
+    useEffect(() => {
+        if (exercises.length > 0 && !selectedChartExercise) {
+            setSelectedChartExercise(exercises[0]);
+        }
+    }, [exercises, selectedChartExercise]);
+
+    // ─── Calendar Logic ───
+
+    const trainedDates = useMemo(() => {
+        const set = new Set<string>();
+        freqData.forEach(d => { if (d.trained) set.add(d.date); });
+        return set;
+    }, [freqData]);
+
+    const goToPrevMonth = () => {
+        const m = currentMonth - 1;
+        if (m < 0) { setCurrentYear(y => y - 1); setCurrentMonth(11); }
+        else { setCurrentMonth(m); }
+        setCalendarKey(`${currentMonth === 0 ? currentYear - 1 : currentYear}-${m < 0 ? 11 : m}`);
+    };
+
+    const goToNextMonth = () => {
+        const m = currentMonth + 1;
+        if (m > 11) { setCurrentYear(y => y + 1); setCurrentMonth(0); }
+        else { setCurrentMonth(m); }
+        setCalendarKey(`${currentMonth === 11 ? currentYear + 1 : currentYear}-${m > 11 ? 0 : m}`);
+    };
+
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    const currentMonthFreq = useMemo(() => {
+        return freqData.filter(d => {
+            const [y, m] = d.date.split('-');
+            return parseInt(y) === currentYear && parseInt(m) - 1 === currentMonth;
+        });
+    }, [freqData, currentYear, currentMonth]);
+
+    const prevMonthFreq = useMemo(() => {
+        return freqData.filter(d => {
+            const [y, m] = d.date.split('-');
+            return parseInt(y) === prevYear && parseInt(m) - 1 === prevMonth;
+        });
+    }, [freqData, prevYear, prevMonth]);
+
+    const monthlyStats = useMemo(() => calculateMonthlyStats(currentMonthFreq), [currentMonthFreq]);
+    const prevStats = useMemo(() => calculateMonthlyStats(prevMonthFreq), [prevMonthFreq]);
+
+    const trainingDiff = useMemo(() => {
+        if (!prevStats || prevStats.trainingDays === 0) return null;
+        return Math.round(((monthlyStats.trainingDays - prevStats.trainingDays) / prevStats.trainingDays) * 100);
+    }, [monthlyStats, prevStats]);
+
+    const frequencyClass = useMemo(() => classifyFrequency(monthlyStats.frequencyPercentage), [monthlyStats]);
+
+    const calendarGrid = useMemo(() => {
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+        const todayStr = formatDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+
+        const grid: Array<{
+            day: number; date: string; isCurrentMonth: boolean;
+            isToday: boolean; trained: boolean
+        }> = [];
+
+        for (let i = firstDay - 1; i >= 0; i--) {
+            const m = currentMonth - 1;
+            const y = m < 0 ? currentYear - 1 : currentYear;
+            const mo = m < 0 ? 11 : m;
+            const date = formatDateStr(y, mo, daysInPrevMonth - i);
+            grid.push({ day: daysInPrevMonth - i, date, isCurrentMonth: false, isToday: false, trained: trainedDates.has(date) });
+        }
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            const date = formatDateStr(currentYear, currentMonth, i);
+            grid.push({ day: i, date, isCurrentMonth: true, isToday: date === todayStr, trained: trainedDates.has(date) });
+        }
+
+        const remaining = 42 - grid.length;
+        for (let i = 1; i <= remaining; i++) {
+            const m = currentMonth + 1;
+            const y = m > 11 ? currentYear + 1 : currentYear;
+            const mo = m > 11 ? 0 : m;
+            const date = formatDateStr(y, mo, i);
+            grid.push({ day: i, date, isCurrentMonth: false, isToday: false, trained: trainedDates.has(date) });
+        }
+
+        return grid;
+    }, [currentYear, currentMonth, trainedDates, today]);
+
+    // ─── Monthly Insights ───
+
+    const monthlyInsights = useMemo(() => {
+        const result: Array<{
+            icon: string; title: string; description: string; type: 'positive' | 'attention' | 'motivation'
+        }> = [];
+
+        if (trainingDiff !== null && Math.abs(trainingDiff) > 0) {
+            if (trainingDiff > 5) {
+                result.push({
+                    icon: '📈',
+                    title: 'Evolução positiva',
+                    description: `Sua frequência aumentou ${trainingDiff}% em relação ao mês anterior.`,
+                    type: 'positive'
+                });
+            } else if (trainingDiff < -5) {
+                result.push({
+                    icon: '📉',
+                    title: 'Frequência abaixo da meta',
+                    description: `Sua frequência caiu ${Math.abs(trainingDiff)}% em relação ao mês anterior.`,
+                    type: 'attention'
+                });
+            }
+        }
+
+        if (monthlyStats.frequencyPercentage >= 60 && result.length < 2) {
+            result.push({
+                icon: '🔥',
+                title: 'Continue assim',
+                description: 'Você está mantendo uma ótima consistência nos treinos.',
+                type: 'motivation'
+            });
+        }
+
+        if (monthlyStats.trainingDays === 0) {
+            result.push({
+                icon: '💪',
+                title: 'Vamos começar?',
+                description: 'Nenhum treino registrado neste mês. Que tal iniciar agora?',
+                type: 'attention'
+            });
+        }
+
+        if (result.length === 0) {
+            result.push({
+                icon: '📊',
+                title: 'Consistência em construção',
+                description: 'Continue treinando para construir uma boa sequência.',
+                type: 'motivation'
+            });
+        }
+
+        return result;
+    }, [trainingDiff, monthlyStats]);
+
+    // ─── Chart Data ───
 
     const mergedChartData = useMemo(() => {
         if (!selectedChartExercise) return { data: [], avgVolume: 0, avgLoad: 0, avgReps: 0, evolVolume: 0, evolLoad: 0, evolReps: 0 };
-        
+
         const exerciseLoadData = loadData.filter(d => d.exercise_name === selectedChartExercise);
         const exerciseRepsData = repsDataMap[selectedChartExercise] || [];
 
-        const byDate = new Map<string, { volume: number, load: number, reps: number }>();
+        const byDate = new Map<string, { volume: number; load: number; reps: number }>();
         exerciseLoadData.forEach(d => {
             byDate.set(d.date, { volume: d.total_volume, load: d.max_load, reps: 0 });
         });
-        
+
         exerciseRepsData.forEach(d => {
             if (!byDate.has(d.date)) byDate.set(d.date, { volume: 0, load: 0, reps: 0 });
             const item = byDate.get(d.date)!;
@@ -183,42 +327,34 @@ export default function Evolucao() {
             const v1 = first.reduce((s, x) => s + x.volume, 0) / (first.length || 1);
             const v2 = second.reduce((s, x) => s + x.volume, 0) / (second.length || 1);
             if (v1 > 0) evolVolume = Math.round(((v2 - v1) / v1) * 100);
-            
+
             const l1 = Math.max(...first.map(p => p.load), 0);
             const l2 = Math.max(...second.map(p => p.load), 0);
             evolLoad = l2 - l1;
 
             const r1 = Math.max(...first.map(p => p.reps), 0);
             const r2 = Math.max(...second.map(p => p.reps), 0);
-            evolReps = r2 - r1; 
+            evolReps = r2 - r1;
         }
 
         return { data: finalData, avgVolume, avgLoad, avgReps, evolVolume, evolLoad, evolReps };
     }, [loadData, repsDataMap, selectedChartExercise]);
-    
-    // Custom Tooltip component for Recharts
+
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             const data = payload[0].payload;
             return (
-                <div style={{
-                    background: 'rgba(15, 23, 42, 0.95)',
-                    border: `1px solid rgba(255,255,255,0.1)`,
-                    borderRadius: '12px',
-                    padding: '16px',
-                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
-                    minWidth: '160px'
-                }}>
-                    <p style={{ margin: '0 0 12px 0', color: '#fff', fontWeight: 700, fontSize: 14, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 8 }}>📅 {label}</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <span style={{ color: 'var(--neutral-400, #94a3b8)', fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-                            <span>💪 Carga:</span> <strong style={{ color: '#fff' }}>{data.load}kg</strong>
+                <div className="chart-tooltip">
+                    <p className="chart-tooltip-date">{label}</p>
+                    <div className="chart-tooltip-stats">
+                        <span className="chart-tooltip-row">
+                            <span>💪 Carga:</span> <strong>{data.load}kg</strong>
                         </span>
-                        <span style={{ color: 'var(--neutral-400, #94a3b8)', fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-                            <span>🔁 Reps:</span> <strong style={{ color: '#fff' }}>{data.reps}</strong>
+                        <span className="chart-tooltip-row">
+                            <span>🔁 Reps:</span> <strong>{data.reps}</strong>
                         </span>
-                        <span style={{ color: 'var(--neutral-400, #94a3b8)', fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-                            <span>⚡ Volume:</span> <strong style={{ color: '#fff' }}>{data.volume}kg</strong>
+                        <span className="chart-tooltip-row">
+                            <span>⚡ Volume:</span> <strong>{data.volume}kg</strong>
                         </span>
                     </div>
                 </div>
@@ -227,7 +363,6 @@ export default function Evolucao() {
         return null;
     };
 
-    // Customized dot for glowing the last point or best point
     const renderCustomDot = (props: any, baseColor: string) => {
         const { cx, cy, payload } = props;
         if (payload.isLast || payload.isBest) {
@@ -241,16 +376,6 @@ export default function Evolucao() {
             );
         }
         return <Dot cx={cx} cy={cy} r={4} fill={baseColor} strokeWidth={2} stroke="#1e293b" />;
-    };
-
-    // ────── STYLES ──────
-    const cardStyle = {
-        background: 'var(--background-primary, #fff)',
-        borderRadius: 'var(--radius-lg)',
-        border: `1px solid ${COLORS.border}`,
-        padding: 'var(--spacing-4)',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-        marginBottom: 'var(--spacing-4)'
     };
 
     const pillStyle = (active: boolean) => ({
@@ -269,11 +394,11 @@ export default function Evolucao() {
     const renderEvolutionText = (val: number, label: string) => {
         const isPos = val >= 0;
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <span style={{ fontSize: 'var(--font-size-md)', fontWeight: 800, color: isPos ? COLORS.success : COLORS.danger }}>
+            <div className="evolution-badge">
+                <span className={`evolution-value ${isPos ? 'positive' : 'negative'}`}>
                     {isPos ? '↑' : '↓'} {Math.abs(val)}%
                 </span>
-                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>{label}</span>
+                <span className="evolution-label">{label}</span>
             </div>
         );
     };
@@ -288,11 +413,10 @@ export default function Evolucao() {
 
     return (
         <AlunoLayout title="Evolução" menuItems={menuItems}>
-            <div style={{ paddingBottom: 'var(--spacing-6)', animation: 'fadeIn 0.4s ease-out' }}>
+            <div className="evolucao-page">
 
-
-                {/* Period Selector (Horizontal Scroll) */}
-                <div style={{ display: 'flex', gap: 'var(--spacing-2)', overflowX: 'auto', paddingBottom: 'var(--spacing-2)', marginBottom: 'var(--spacing-3)', scrollbarWidth: 'none' }}>
+                {/* Period Selector */}
+                <div className="period-selector">
                     {PERIOD_OPTIONS.map(p => (
                         <button key={p.value} style={pillStyle(globalPeriod === p.value)} onClick={() => setGlobalPeriod(p.value)}>
                             {p.label}
@@ -300,96 +424,221 @@ export default function Evolucao() {
                     ))}
                 </div>
 
-                {/* 🔥 RESUMO INTELIGENTE */}
-                <div style={cardStyle}>
-                    <h3 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, margin: '0 0 var(--spacing-3) 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        🔥 Resumo do Período
+                {/* ─── MONTHLY CALENDAR ─── */}
+                <div className="glass-card calendar-card">
+                    <div className="calendar-header">
+                        <div className="calendar-title-group">
+                            <span className="calendar-icon">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary-500)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                    <line x1="16" y1="2" x2="16" y2="6" />
+                                    <line x1="8" y1="2" x2="8" y2="6" />
+                                    <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg>
+                            </span>
+                            <div>
+                                <h3 className="calendar-title">Calendário de Treinos</h3>
+                                <p className="calendar-subtitle">Visualize os dias em que você treinou</p>
+                            </div>
+                        </div>
+                        <div className="calendar-nav">
+                            <button className="calendar-nav-btn" onClick={goToPrevMonth} aria-label="Mês anterior">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="15 18 9 12 15 6" />
+                                </svg>
+                            </button>
+                            <span className="calendar-month-label">
+                                {MONTHS[currentMonth]} {currentYear}
+                            </span>
+                            <button className="calendar-nav-btn" onClick={goToNextMonth} aria-label="Próximo mês">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div key={calendarKey} className="calendar-grid-wrapper">
+                        <div className="calendar-weekdays">
+                            {WEEKDAYS.map(day => (
+                                <span key={day} className="calendar-weekday">{day}</span>
+                            ))}
+                        </div>
+                        <div className="calendar-grid">
+                            {calendarGrid.map((cell, i) => (
+                                <div
+                                    key={i}
+                                    className={`calendar-day ${cell.isCurrentMonth ? '' : 'other-month'} ${cell.isToday ? 'today' : ''} ${cell.trained ? 'trained' : ''}`}
+                                >
+                                    {cell.trained ? (
+                                        <span className="day-circle">{cell.day}</span>
+                                    ) : (
+                                        <span className="day-number">{cell.day}</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="calendar-legend">
+                        <span className="legend-item">
+                            <span className="legend-dot trained" /> Azul → Dia com treino
+                        </span>
+                        <span className="legend-item">
+                            <span className="legend-dot" /> Cinza → Sem treino
+                        </span>
+                    </div>
+                </div>
+
+                {/* ─── SUMMARY CARDS ─── */}
+                <div className="summary-cards">
+                    <div className="glass-card summary-card">
+                        <div className="summary-card-header">
+                            <span className="summary-card-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary-500)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                    <polyline points="22 4 12 14.01 9 11.01" />
+                                </svg>
+                            </span>
+                            <span className="summary-card-label">Treinos no mês</span>
+                        </div>
+                        <div className="summary-card-value">{monthlyStats.trainingDays} treinos</div>
+                        {trainingDiff !== null && (
+                            <div className={`summary-card-diff ${trainingDiff >= 0 ? 'positive' : 'negative'}`}>
+                                {trainingDiff >= 0 ? '↑' : '↓'} {Math.abs(trainingDiff)}% em relação ao mês anterior
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="glass-card summary-card">
+                        <div className="summary-card-header">
+                            <span className="summary-card-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary-500)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                    <polyline points="17 6 23 6 23 12" />
+                                </svg>
+                            </span>
+                            <span className="summary-card-label">Melhor sequência</span>
+                        </div>
+                        <div className="summary-card-value">{monthlyStats.bestStreak} dias consecutivos</div>
+                    </div>
+
+                    <div className="glass-card summary-card">
+                        <div className="summary-card-header">
+                            <span className="summary-card-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary-500)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <polyline points="12 6 12 12 16 14" />
+                                </svg>
+                            </span>
+                            <span className="summary-card-label">Frequência mensal</span>
+                        </div>
+                        <div className="summary-card-value">{monthlyStats.frequencyPercentage}%</div>
+                        <div className={`frequency-badge ${frequencyClass.toLowerCase().replace(/\s+/g, '-')}`}>
+                            {frequencyClass}
+                        </div>
+                    </div>
+                </div>
+
+                {/* ─── INSIGHTS ─── */}
+                {monthlyInsights.length > 0 && (
+                    <div className="insights-list">
+                        {monthlyInsights.map((insight, i) => (
+                            <div key={i} className={`insight-card ${insight.type}`}>
+                                <div className="insight-icon-wrapper">
+                                    <span className="insight-icon">{insight.icon}</span>
+                                </div>
+                                <div className="insight-content">
+                                    <strong className="insight-title">{insight.title}</strong>
+                                    <p className="insight-description">{insight.description}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* ─── PERIOD SUMMARY ─── */}
+                <div className="glass-card period-summary-card">
+                    <h3 className="section-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                        Resumo do Período
                     </h3>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-2)' }}>
+                    <div className="period-summary-grid">
                         {renderEvolutionText(performance.volumeEvolution, 'Volume')}
                         {renderEvolutionText(performance.loadEvolution, 'Carga Máx')}
                         {renderEvolutionText(performance.freqEvolution, 'Frequência')}
                     </div>
                 </div>
 
-                {/* 📈 GRÁFICOS DO EXERCÍCIO COM TABS */}
-                <div style={{ ...cardStyle, overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)', marginBottom: 'var(--spacing-4)' }}>
-                        <div>
-                           <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                               📈 Evolução por Exercício
-                           </h3>
-                        </div>
-                        
-                        <div style={{ position: 'relative' }}>
-                            <select 
-                                value={selectedChartExercise || ''}
-                                onChange={(e) => setSelectedChartExercise(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px 14px',
-                                    borderRadius: '8px',
-                                    background: COLORS.bgSecondary,
-                                    border: `1px solid ${COLORS.border}`,
-                                    color: 'var(--text-primary)',
-                                    fontSize: '14px',
-                                    fontWeight: 600,
-                                    appearance: 'none',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                {exercises.length === 0 && <option value="">Nenhum exercício...</option>}
-                                {exercises.map(ex => (
-                                    <option key={ex} value={ex}>{ex}</option>
-                                ))}
-                            </select>
-                            <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', fontSize: 12, color: COLORS.neutral }}>▼</span>
-                        </div>
+                {/* ─── EXERCISE CHARTS ─── */}
+                <div className="glass-card chart-card">
+                    <div className="chart-header">
+                        <h3 className="section-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="20" x2="18" y2="10" />
+                                <line x1="12" y1="20" x2="12" y2="4" />
+                                <line x1="6" y1="20" x2="6" y2="14" />
+                            </svg>
+                            Evolução por Exercício
+                        </h3>
                     </div>
 
-                    {/* RESUMO INTELIGENTE DO EXERCÍCIO */}
+                    <div className="exercise-selector">
+                        <select
+                            value={selectedChartExercise || ''}
+                            onChange={(e) => setSelectedChartExercise(e.target.value)}
+                            className="exercise-select"
+                        >
+                            {exercises.length === 0 && <option value="">Nenhum exercício...</option>}
+                            {exercises.map(ex => (
+                                <option key={ex} value={ex}>{ex}</option>
+                            ))}
+                        </select>
+                        <span className="select-arrow">▼</span>
+                    </div>
+
                     {mergedChartData.data.length > 0 && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: 'var(--spacing-5)' }}>
-                            <div style={{ background: mergedChartData.evolVolume >= 0 ? COLORS.successAlpha : COLORS.dangerAlpha, padding: 'var(--spacing-3)', borderRadius: 'var(--radius-md)', border: `1px solid ${mergedChartData.evolVolume >= 0 ? COLORS.success : COLORS.danger}20` }}>
-                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: 2 }}>🔥 Volume</span>
-                                <strong style={{ fontSize: '15px', color: mergedChartData.evolVolume >= 0 ? COLORS.success : COLORS.danger }}>
+                        <div className="chart-metrics">
+                            <div className={`chart-metric ${mergedChartData.evolVolume >= 0 ? 'positive' : 'negative'}`}>
+                                <span className="metric-label">🔥 Volume</span>
+                                <strong className="metric-value">
                                     {mergedChartData.evolVolume > 0 ? '+' : ''}{mergedChartData.evolVolume}%
                                 </strong>
                             </div>
-                            <div style={{ background: mergedChartData.evolLoad >= 0 ? COLORS.successAlpha : COLORS.dangerAlpha, padding: 'var(--spacing-3)', borderRadius: 'var(--radius-md)', border: `1px solid ${mergedChartData.evolLoad >= 0 ? COLORS.success : COLORS.danger}20` }}>
-                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: 2 }}>💪 Carga Máx</span>
-                                <strong style={{ fontSize: '15px', color: mergedChartData.evolLoad >= 0 ? COLORS.success : COLORS.danger }}>
+                            <div className={`chart-metric ${mergedChartData.evolLoad >= 0 ? 'positive' : 'negative'}`}>
+                                <span className="metric-label">💪 Carga Máx</span>
+                                <strong className="metric-value">
                                     {mergedChartData.evolLoad > 0 ? '+' : ''}{mergedChartData.evolLoad}kg
                                 </strong>
                             </div>
-                            <div style={{ background: mergedChartData.evolReps >= 0 ? COLORS.successAlpha : COLORS.dangerAlpha, padding: 'var(--spacing-3)', borderRadius: 'var(--radius-md)', border: `1px solid ${mergedChartData.evolReps >= 0 ? COLORS.success : COLORS.danger}20` }}>
-                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: 2 }}>🔁 Reps Max</span>
-                                <strong style={{ fontSize: '15px', color: mergedChartData.evolReps >= 0 ? COLORS.success : COLORS.danger }}>
+                            <div className={`chart-metric ${mergedChartData.evolReps >= 0 ? 'positive' : 'negative'}`}>
+                                <span className="metric-label">🔁 Reps Max</span>
+                                <strong className="metric-value">
                                     {mergedChartData.evolReps > 0 ? '+' : ''}{mergedChartData.evolReps}
                                 </strong>
                             </div>
                         </div>
                     )}
 
-                    {/* TABS DE NAVEGAÇÃO DOS GRÁFICOS */}
                     {mergedChartData.data.length > 0 && (
-                        <div style={{ display: 'flex', gap: 'var(--spacing-2)', marginBottom: 'var(--spacing-4)', overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
+                        <div className="chart-tabs">
                             <button style={pillStyle(chartTab === 'volume')} onClick={() => setChartTab('volume')}>Volume</button>
                             <button style={pillStyle(chartTab === 'carga')} onClick={() => setChartTab('carga')}>Carga</button>
                             <button style={pillStyle(chartTab === 'reps')} onClick={() => setChartTab('reps')}>Repetições</button>
                         </div>
                     )}
 
-                    {/* CONTAINER DO GRÁFICO SELECIONADO */}
                     {mergedChartData.data.length > 0 ? (
-                        <div style={{ height: 260, width: '100%', position: 'relative' }}>
+                        <div className="chart-container">
                             <ResponsiveContainer width="100%" height="100%">
                                 {chartTab === 'volume' ? (
                                     <AreaChart data={mergedChartData.data} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorVolGrad" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.6}/>
-                                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0.0}/>
+                                                <stop offset="5%" stopColor={`var(--primary-500)`} stopOpacity={0.6} />
+                                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0.0} />
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={COLORS.border} opacity={0.4} />
@@ -397,7 +646,7 @@ export default function Evolucao() {
                                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: COLORS.neutral }} />
                                         <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
                                         <ReferenceLine y={mergedChartData.avgVolume} stroke={COLORS.neutral} strokeDasharray="3 3" strokeOpacity={0.5} label={{ position: 'insideTopLeft', value: 'Média', fill: COLORS.neutral, fontSize: 10 }} />
-                                        <Area type="monotone" dataKey="volume" stroke="url(#colorVolGrad)" strokeWidth={3} fill="url(#colorVolGrad)" dot={(props) => renderCustomDot(props, COLORS.primary)} activeDot={{ r: 0 }} />
+                                        <Area type="monotone" dataKey="volume" stroke={`var(--primary-500)`} strokeWidth={3} fill="url(#colorVolGrad)" dot={(props) => renderCustomDot(props, `var(--primary-500)`)} activeDot={{ r: 0 }} />
                                     </AreaChart>
                                 ) : chartTab === 'carga' ? (
                                     <LineChart data={mergedChartData.data} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
@@ -421,154 +670,82 @@ export default function Evolucao() {
                             </ResponsiveContainer>
                         </div>
                     ) : (
-                        <div style={{ textAlign: 'center', padding: 'var(--spacing-5)', color: 'var(--text-secondary)' }}>
+                        <div className="chart-empty">
                             Sem dados suficientes para este exercício no período.
                         </div>
                     )}
                 </div>
 
-                {/* 📅 CONSISTÊNCIA DE TREINO (GITHUB CALENDAR) & GAMIFICAÇÃO */}
-                <div style={cardStyle}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-3)' }}>
-                        <h3 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            📅 Consistência
-                        </h3>
-                        <div style={{ display: 'flex', gap: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span style={{ fontSize: 16 }}>🔥</span>
-                                <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)' }}>{streak.currentStreak}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span style={{ fontSize: 16 }}>🏆</span>
-                                <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: COLORS.neutral }}>{streak.bestStreak}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(7, 1fr)',
-                        gap: 4,
-                        marginTop: 'var(--spacing-2)'
-                    }}>
-                        {/* We show the last 28 days to make 4 perfect weeks (7 columns) */}
-                        {freqData.slice(-28).map((day, i) => {
-                            const isToday = day.date === new Date().toISOString().split('T')[0];
-                            let bgColor = 'rgba(148, 163, 184, 0.25)'; // Light gray for empty squares
-                            if (day.trained) {
-                                // Simulate intensity colors if we have multiple sessions, otherwise default green
-                                bgColor = day.session_count > 1 ? 'rgb(21, 128, 61)' : COLORS.success;
-                            }
-
-                            return (
-                                <div
-                                    key={i}
-                                    title={`${fmtDate(day.date)} ${day.trained ? '✅' : '❌'}`}
-                                    style={{
-                                        aspectRatio: '1/1',
-                                        borderRadius: 4,
-                                        backgroundColor: bgColor,
-                                        border: isToday ? `2px solid var(--primary-500)` : (day.trained ? 'none' : '1px solid rgba(148, 163, 184, 0.1)'),
-                                        opacity: day.trained ? 1 : 1
-                                    }}
-                                />
-                            );
-                        })}
-                    </div>
-                    <p style={{ fontSize: '10px', textAlign: 'center', marginTop: 'var(--spacing-3)', color: 'var(--text-secondary)' }}>Últimos 28 dias</p>
-                </div>
-
-                {/* 🤖 INSIGHTS AUTOMÁTICOS */}
-                {insights.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)', marginBottom: 'var(--spacing-4)' }}>
-                        {insights.map((insight, i) => (
-                            <div key={i} style={{
-                                background: insight.type === 'positive' ? COLORS.successAlpha : (insight.type === 'negative' ? COLORS.dangerAlpha : COLORS.bgSecondary),
-                                borderRadius: 'var(--radius-md)',
-                                padding: 'var(--spacing-3)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 'var(--spacing-3)',
-                                border: `1px solid ${insight.type === 'positive' ? COLORS.success : (insight.type === 'negative' ? COLORS.danger : COLORS.border)}`
-                            }}>
-                                <span style={{ fontSize: 24 }}>{insight.icon}</span>
-                                <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.4 }}>
-                                    {insight.text}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* 🏋️ EVOLUÇÃO POR EXERCÍCIO (EXPANDABLE CARDS) */}
-                <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 800, margin: 'var(--spacing-5) 0 var(--spacing-3) 0' }}>
-                    🏋️ Evolução por Exercício
+                {/* ─── EXERCISE LIST ─── */}
+                <h3 className="section-title exercise-list-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6.5 6.5h11M6.5 17.5h11M9.5 12h5" />
+                        <circle cx="12" cy="12" r="10" />
+                    </svg>
+                    Evolução por Exercício
                 </h3>
 
                 {exercises.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: 'var(--spacing-5)', color: 'var(--text-secondary)', background: COLORS.bgSecondary, borderRadius: 'var(--radius-lg)' }}>
+                    <div className="empty-state-card">
                         Nenhum exercício registrado neste período.
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+                    <div className="exercise-list">
                         {exercises.map(ex => {
                             const isExpanded = expandedExercise === ex;
                             const exRepsData = repsDataMap[ex] || [];
                             const hasData = exRepsData.length > 0;
-
-                            // Get latest stats
                             const latest = hasData ? exRepsData[exRepsData.length - 1] : null;
                             const first = hasData ? exRepsData[0] : null;
-                            const loadEvol = (latest && first && first.load_at_best > 0) ? Math.round(((latest.load_at_best - first.load_at_best) / first.load_at_best) * 100) : 0;
+                            const loadEvol = (latest && first && first.load_at_best > 0)
+                                ? Math.round(((latest.load_at_best - first.load_at_best) / first.load_at_best) * 100)
+                                : 0;
 
                             return (
-                                <div key={ex} style={{ ...cardStyle, marginBottom: 0, padding: 0, overflow: 'hidden' }}>
-                                    {/* Header (Click to expand) */}
+                                <div key={ex} className={`exercise-card ${isExpanded ? 'expanded' : ''}`}>
                                     <div
+                                        className="exercise-card-header"
                                         onClick={() => setExpandedExercise(isExpanded ? null : ex)}
-                                        style={{
-                                            padding: 'var(--spacing-3) var(--spacing-4)',
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            cursor: 'pointer',
-                                            background: isExpanded ? COLORS.bgSecondary : 'transparent'
-                                        }}
                                     >
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>{ex}</strong>
+                                        <div className="exercise-card-info">
+                                            <strong className="exercise-card-name">{ex}</strong>
                                             {hasData && latest && (
-                                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginTop: 2 }}>
+                                                <span className="exercise-card-stats">
                                                     Max: {latest.load_at_best}kg | Reps: {latest.best_reps}
                                                 </span>
                                             )}
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-3)' }}>
+                                        <div className="exercise-card-actions">
                                             {hasData && loadEvol !== 0 && (
-                                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: loadEvol > 0 ? COLORS.success : COLORS.danger, background: loadEvol > 0 ? COLORS.successAlpha : COLORS.dangerAlpha, padding: '2px 8px', borderRadius: 12 }}>
+                                                <span className={`exercise-card-evol ${loadEvol > 0 ? 'positive' : 'negative'}`}>
                                                     {loadEvol > 0 ? '↑' : '↓'} {Math.abs(loadEvol)}%
                                                 </span>
                                             )}
-                                            <span style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: 12, color: COLORS.neutral }}>
-                                                ▼
+                                            <span className={`exercise-card-arrow ${isExpanded ? 'open' : ''}`}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="6 9 12 15 18 9" />
+                                                </svg>
                                             </span>
                                         </div>
                                     </div>
 
-                                    {/* Expanded Body Data */}
                                     {isExpanded && (
-                                        <div style={{ padding: 'var(--spacing-3) var(--spacing-4)', borderTop: `1px solid ${COLORS.border}`, animation: 'fadeIn 0.2s ease-out' }}>
+                                        <div className="exercise-card-body">
                                             {!hasData ? (
-                                                <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', margin: 0, textAlign: 'center' }}>Carregando dados...</p>
+                                                <p className="exercise-card-loading">Carregando dados...</p>
                                             ) : (
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-3)' }}>
-                                                    <div style={{ background: COLORS.bgSecondary, padding: 'var(--spacing-2)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
-                                                        <span style={{ display: 'block', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 2 }}>Melhor Carga</span>
-                                                        <strong style={{ fontSize: 'var(--font-size-md)', color: COLORS.primary }}>{Math.max(...exRepsData.map(d => d.load_at_best))}kg</strong>
+                                                <div className="exercise-card-grid">
+                                                    <div className="exercise-card-stat">
+                                                        <span className="stat-label">Melhor Carga</span>
+                                                        <strong className="stat-value primary">
+                                                            {Math.max(...exRepsData.map(d => d.load_at_best))}kg
+                                                        </strong>
                                                     </div>
-                                                    <div style={{ background: COLORS.bgSecondary, padding: 'var(--spacing-2)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
-                                                        <span style={{ display: 'block', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 2 }}>Melhor Reps</span>
-                                                        <strong style={{ fontSize: 'var(--font-size-md)', color: COLORS.primary }}>{Math.max(...exRepsData.map(d => d.best_reps))}</strong>
+                                                    <div className="exercise-card-stat">
+                                                        <span className="stat-label">Melhor Reps</span>
+                                                        <strong className="stat-value primary">
+                                                            {Math.max(...exRepsData.map(d => d.best_reps))}
+                                                        </strong>
                                                     </div>
                                                 </div>
                                             )}
@@ -580,6 +757,18 @@ export default function Evolucao() {
                     </div>
                 )}
             </div>
+
+            {/* ─── Old Insights ─── */}
+            {insights.length > 0 && (
+                <div className="old-insights">
+                    {insights.map((insight, i) => (
+                        <div key={i} className={`old-insight-card ${insight.type}`}>
+                            <span className="old-insight-icon">{insight.icon}</span>
+                            <p className="old-insight-text">{insight.text}</p>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <style>{`
                 @keyframes fadeIn {

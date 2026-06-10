@@ -520,3 +520,93 @@ export function getPerformanceComparison(
 
     return { volumeEvolution, loadEvolution, freqEvolution };
 }
+
+// ============ Monthly Calendario Functions ============
+
+export interface MonthlyStats {
+    trainingDays: number;
+    bestStreak: number;
+    frequencyPercentage: number;
+    daysInMonth: number;
+}
+
+/**
+ * Get frequency data for a specific month
+ */
+export async function getMonthFrequency(
+    studentId: string,
+    year: number,
+    month: number
+): Promise<FrequencyDay[]> {
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    const { data: sessions } = await supabase
+        .from('workout_sessions')
+        .select('started_at')
+        .eq('student_id', studentId)
+        .eq('status', 'concluido')
+        .gte('started_at', startDate.toISOString())
+        .lte('started_at', endDate.toISOString());
+
+    const trainedDates = new Set<string>();
+    for (const s of sessions || []) {
+        trainedDates.add(s.started_at.split('T')[0]);
+    }
+
+    const result: FrequencyDay[] = [];
+    const cursor = new Date(startDate);
+
+    while (cursor <= endDate) {
+        const dateStr = cursor.toISOString().split('T')[0];
+        result.push({
+            date: dateStr,
+            trained: trainedDates.has(dateStr),
+            session_count: trainedDates.has(dateStr) ? 1 : 0
+        });
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return result;
+}
+
+/**
+ * Calculate monthly statistics from frequency data
+ */
+export function calculateMonthlyStats(freqData: FrequencyDay[]): MonthlyStats {
+    const trainingDays = freqData.filter(d => d.trained).length;
+    const daysInMonth = freqData.length;
+    const frequencyPercentage = daysInMonth > 0 ? Math.round((trainingDays / daysInMonth) * 100) : 0;
+    const bestStreak = calculateBestStreak(freqData);
+
+    return { trainingDays, bestStreak, frequencyPercentage, daysInMonth };
+}
+
+/**
+ * Calculate the best streak of consecutive training days
+ */
+export function calculateBestStreak(freqData: FrequencyDay[]): number {
+    let bestStreak = 0;
+    let tempStreak = 0;
+
+    for (let i = 0; i < freqData.length; i++) {
+        if (freqData[i].trained) {
+            tempStreak++;
+            if (tempStreak > bestStreak) bestStreak = tempStreak;
+        } else {
+            tempStreak = 0;
+        }
+    }
+
+    return bestStreak;
+}
+
+export type FrequencyClassification = 'Excelente' | 'Muito Boa' | 'Boa' | 'Baixa';
+
+export function classifyFrequency(pct: number): FrequencyClassification {
+    if (pct >= 80) return 'Excelente';
+    if (pct >= 60) return 'Muito Boa';
+    if (pct >= 40) return 'Boa';
+    return 'Baixa';
+}
